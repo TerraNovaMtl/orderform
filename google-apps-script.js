@@ -12,11 +12,11 @@
 
 const ORDER_EMAIL       = 'terranova.mtl.ai@gmail.com';
 const SPREADSHEET_ID    = '10H9CTzRHUGK6SrukXklahr0ebQvJR8bueNL8VZEmses';
-const ADMIN_PASSWORD    = 'pickleball2026';
 const ORDERS_SHEET      = 'Orders';
 const PRODUCTS_SHEET    = 'Products';
 const COUNTER_SHEET     = 'Counter';
 const VENDORS_SHEET     = 'Vendors';
+const ADMIN_TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
 
 function getSpreadsheet() {
   return SpreadsheetApp.openById(SPREADSHEET_ID);
@@ -48,13 +48,14 @@ function getNextOrderId() {
 
 /* ── Admin-only actions (require pw param) ───────────────── */
 var ADMIN_ACTIONS = {
-  getUploadToken:    true,
+  uploadImage:       true,
   saveProduct:       true,
   deleteProduct:     true,
   saveProducts:      true,
   getOrders:         true,
   updateOrderStatus: true,
   updateOrderLines:  true,
+  getStoreContacts:  true,
   getVendors:        true,
   saveVendors:       true,
   deleteStore:       true,
@@ -66,28 +67,50 @@ function doGet(e) {
   const action = (e.parameter && e.parameter.action) || 'submitOrder';
   try {
     if (ADMIN_ACTIONS[action]) {
-      var pw = (e.parameter && e.parameter.pw) ? e.parameter.pw : '';
-      if (pw !== ADMIN_PASSWORD) {
+      var token = (e.parameter && e.parameter.token) ? e.parameter.token : '';
+      if (!isValidAdminToken_(token)) {
         return json({ status: 'error', message: 'Unauthorized' });
       }
     }
     if      (action === 'getProducts')       return handleGetProducts(e);
-    else if (action === 'getUploadToken')    return handleGetUploadToken();
-    else if (action === 'saveProduct')       return handleSaveProduct(e);
-    else if (action === 'deleteProduct')     return handleDeleteProduct(e);
-    else if (action === 'saveProducts')      return handleSaveProducts(e);
-    else if (action === 'getOrders')         return handleGetOrders();
-    else if (action === 'updateOrderStatus') return handleUpdateOrderStatus(e);
-    else if (action === 'updateOrderLines')  return handleUpdateOrderLines(e);
     else if (action === 'getVendor')         return handleGetVendor(e);
-    else if (action === 'getVendors')        return handleGetVendors();
-    else if (action === 'saveVendors')       return handleSaveVendors(e);
-    else if (action === 'verifyPassword')    return handleVerifyPassword(e);
     else if (action === 'lookupStore')       return handleLookupStore(e);
-    else if (action === 'saveStore')         return handleSaveStore(e);
-    else if (action === 'getStoreContacts')  return handleGetStoreContacts(e);
-    else if (action === 'deleteStore')       return handleDeleteStore(e);
-    else                                     return handleSubmitOrder(e);
+    else if (action === 'uploadImage')       return json({ status: 'error', message: 'Use POST for uploadImage' });
+    else if (action === 'verifyPassword')    return json({ status: 'error', message: 'Use POST for verifyPassword' });
+    else if (action === 'saveStore')         return json({ status: 'error', message: 'Use POST for saveStore' });
+    else if (action === 'submitOrder' || action === '') return json({ status: 'error', message: 'Use POST for submitOrder' });
+    else                                     return json({ status: 'error', message: 'Use POST for ' + action });
+  } catch (err) {
+    return json({ status: 'error', message: err.toString() });
+  }
+}
+
+function doPost(e) {
+  var request = parseRequest_(e);
+  const action = request.action || '';
+  try {
+    if (ADMIN_ACTIONS[action]) {
+      var token = request.token || '';
+      if (!isValidAdminToken_(token)) {
+        return json({ status: 'error', message: 'Unauthorized' });
+      }
+    }
+    if (action === 'uploadImage') return handleUploadImage(e);
+    if (action === 'verifyPassword') return handleVerifyPassword(e);
+    if (action === 'saveProduct') return handleSaveProduct(e);
+    if (action === 'deleteProduct') return handleDeleteProduct(e);
+    if (action === 'saveProducts') return handleSaveProducts(e);
+    if (action === 'getOrders') return handleGetOrders();
+    if (action === 'updateOrderStatus') return handleUpdateOrderStatus(e);
+    if (action === 'updateOrderLines') return handleUpdateOrderLines(e);
+    if (action === 'getVendors') return handleGetVendors();
+    if (action === 'saveVendors') return handleSaveVendors(e);
+    if (action === 'getStoreContacts') return handleGetStoreContacts(e);
+    if (action === 'deleteStore') return handleDeleteStore(e);
+    if (action === 'lookupStore') return handleLookupStore(e);
+    if (action === 'saveStore') return handleSaveStore(e);
+    if (action === 'submitOrder') return handleSubmitOrder(e);
+    return json({ status: 'error', message: 'Unknown POST action: ' + action });
   } catch (err) {
     return json({ status: 'error', message: err.toString() });
   }
@@ -138,16 +161,32 @@ function handleGetProducts(e) {
   return json(products);
 }
 
-/* ── GitHub image upload token ──────────────────────────────── */
-function handleGetUploadToken() {
-  var pat = PropertiesService.getScriptProperties().getProperty('GITHUB_PAT');
-  if (!pat) return json({ status: 'error', message: 'GITHUB_PAT not set in Script Properties' });
-  return json({ status: 'ok', token: pat });
+/* Server-side GitHub image upload */
+function handleUploadImage(e) {
+  var body = {};
+  if (e.postData && e.postData.contents) {
+    body = JSON.parse(e.postData.contents);
+  } else if (e.parameter && e.parameter.payload) {
+    body = JSON.parse(e.parameter.payload);
+  }
+
+  var filename = normalizeImageFilename_(body.filename);
+  var contentBase64 = String(body.contentBase64 || '');
+  if (!filename || !contentBase64) {
+    return json({ status: 'error', message: 'Missing filename or contentBase64' });
+  }
+  if (contentBase64.length > 7 * 1024 * 1024) {
+    return json({ status: 'error', message: 'Image payload too large' });
+  }
+
+  Utilities.base64Decode(contentBase64);
+  uploadGithubImage_(filename, contentBase64);
+  return json({ status: 'ok', filename: filename, path: 'images/' + filename });
 }
 
 /* ── Products: upsert single row ────────────────────────────── */
 function handleSaveProduct(e) {
-  var p      = JSON.parse(e.parameter.payload);
+  var p      = JSON.parse(getPayload_(e));
   var ss     = getSpreadsheet();
   var sheet  = ss.getSheetByName(PRODUCTS_SHEET);
   if (!sheet) sheet = ss.insertSheet(PRODUCTS_SHEET);
@@ -162,14 +201,14 @@ function handleSaveProduct(e) {
 
   var status = p.status || (p.available !== false ? 'available' : 'unavailable');
   var rowData = [
-    p.id, p.name, p.barcode, p.sku,
+    p.id, safeSheetText_(p.name), safeSheetText_(p.barcode), safeSheetText_(p.sku),
     Number(p.srp), Number(p.cost || 0), Number(p.cost || 0) * 1.11,
-    p.img, p.orderUnit, Number(p.unitsPerOrder), p.unitLabel,
+    safeSheetText_(p.img), safeSheetText_(p.orderUnit), Number(p.unitsPerOrder), safeSheetText_(p.unitLabel),
     status === 'available', status,
-    p.vendorCodes || '[]',
-    p.category || 'Gift Novelties',
-    p.style || '',
-    p.description || '',
+    safeSheetText_(p.vendorCodes || '[]'),
+    safeSheetText_(p.category || 'Gift Novelties'),
+    safeSheetText_(p.style || ''),
+    safeSheetText_(p.description || ''),
   ];
 
   // Find existing row by id
@@ -187,7 +226,8 @@ function handleSaveProduct(e) {
 
 /* ── Products: delete single row by id ──────────────────────── */
 function handleDeleteProduct(e) {
-  var id    = String(e.parameter.id);
+  var request = parseRequest_(e);
+  var id    = String(request.body.id || (e.parameter && e.parameter.id) || '');
   var ss    = getSpreadsheet();
   var sheet = ss.getSheetByName(PRODUCTS_SHEET);
   if (!sheet) return json({ status: 'error', message: 'Products sheet not found' });
@@ -203,8 +243,9 @@ function handleDeleteProduct(e) {
 
 /* ── Products: write (supports chunked saves via append=true) ── */
 function handleSaveProducts(e) {
-  var products = JSON.parse(e.parameter.payload);
-  var append   = e.parameter.append === 'true';
+  var request  = parseRequest_(e);
+  var products = JSON.parse(getPayload_(e));
+  var append   = String(request.body.append !== undefined ? request.body.append : (e.parameter && e.parameter.append)) === 'true';
   var ss       = getSpreadsheet();
   var sheet    = ss.getSheetByName(PRODUCTS_SHEET);
 
@@ -222,15 +263,15 @@ function handleSaveProducts(e) {
   products.forEach(function(p) {
     var status = p.status || (p.available !== false ? 'available' : 'unavailable');
     sheet.appendRow([
-      p.id, p.name, p.barcode, p.sku,
+      p.id, safeSheetText_(p.name), safeSheetText_(p.barcode), safeSheetText_(p.sku),
       Number(p.srp), Number(p.cost || 0), Number(p.cost || 0) * 1.11,
-      p.img, p.orderUnit, Number(p.unitsPerOrder), p.unitLabel,
+      safeSheetText_(p.img), safeSheetText_(p.orderUnit), Number(p.unitsPerOrder), safeSheetText_(p.unitLabel),
       status === 'available',
       status,
-      p.vendorCodes || '[]',
-      p.category || 'Gift Novelties',
-      p.style || '',
-      p.description || '',
+      safeSheetText_(p.vendorCodes || '[]'),
+      safeSheetText_(p.category || 'Gift Novelties'),
+      safeSheetText_(p.style || ''),
+      safeSheetText_(p.description || ''),
     ]);
   });
 
@@ -239,9 +280,23 @@ function handleSaveProducts(e) {
 
 /* ── Orders: submit + email ──────────────────────────────── */
 function handleSubmitOrder(e) {
-  const data    = JSON.parse(e.parameter.payload);
+  const data    = JSON.parse(getPayload_(e));
   const orderId = getNextOrderId();
   const date    = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
+  var normalized = normalizeSubmittedOrder_(data);
+  data.lines = normalized.lines;
+  data.totalOrderUnits = normalized.totalOrderUnits;
+  data.totalIndividualUnits = normalized.totalIndividualUnits;
+  data.totalDealer = normalized.totalDealer;
+  data.totalRetail = normalized.totalRetail;
+  data.vendorCompany = safeSheetText_(String(data.vendorCompany || ''));
+  data.vendorCode = safeSheetText_(String(data.vendorCode || '').trim().toUpperCase());
+  data.storeCode = safeSheetText_(String(data.storeCode || '').trim().toUpperCase());
+  data.customerEmail = safeSheetText_(String(data.customerEmail || '').trim());
+  data.contactName = safeSheetText_(String(data.contactName || '').trim());
+  data.comments = safeSheetText_(String(data.comments || '').trim());
+  data.agentName = safeSheetText_(String(data.agentName || '').trim());
+  data.agentEmail = safeSheetText_(String(data.agentEmail || '').trim());
   data.orderId  = orderId;
   data.date     = date;
   const ss    = getSpreadsheet();
@@ -269,8 +324,8 @@ function handleSubmitOrder(e) {
   data.lines.forEach(function(line) {
     sheet.appendRow([
       data.date, data.orderId,
-      line.name, line.sku, line.barcode,
-      line.orderUnit, line.qty, line.units,
+      safeSheetText_(line.name), safeSheetText_(line.sku), safeSheetText_(line.barcode),
+      safeSheetText_(line.orderUnit), line.qty, line.units,
       line.dealerUnit, line.lineDealer,
       line.srpUnit,       line.lineSRP,
     ]);
@@ -317,11 +372,11 @@ function sendOrderEmail(data) {
     + '<div style="background:#d8e4ef;padding:20px 24px">'
     + '<h1 style="color:#1a202c;margin:0 0 12px;font-size:1.3rem">Terra Nova — New Wholesale Order</h1>'
     + '<table style="border-collapse:collapse;width:100%">'
-    + (data.vendorCompany ? '<tr><td style="color:#4a6080;font-size:.75rem;padding:2px 0;width:110px">Company</td><td style="color:#1a202c;font-size:.85rem;font-weight:700">' + data.vendorCompany + '</td></tr>' : '')
-    + (data.storeCode     ? '<tr><td style="color:#4a6080;font-size:.75rem;padding:2px 0">Store Code</td><td style="color:#1a202c;font-size:.85rem;font-family:monospace;letter-spacing:.05em">' + data.storeCode + '</td></tr>' : '')
-    + (data.contactName   ? '<tr><td style="color:#4a6080;font-size:.75rem;padding:2px 0">Contact</td><td style="color:#1a202c;font-size:.85rem">' + data.contactName + '</td></tr>' : '')
-    + (data.customerEmail ? '<tr><td style="color:#4a6080;font-size:.75rem;padding:2px 0">Email</td><td style="color:#1a202c;font-size:.85rem">' + data.customerEmail + '</td></tr>' : '')
-    + (data.agentName     ? '<tr><td style="color:#4a6080;font-size:.75rem;padding:2px 0">Agent</td><td style="color:#1a202c;font-size:.85rem">' + data.agentName + '</td></tr>' : '')
+    + (data.vendorCompany ? '<tr><td style="color:#4a6080;font-size:.75rem;padding:2px 0;width:110px">Company</td><td style="color:#1a202c;font-size:.85rem;font-weight:700">' + htmlEscape_(data.vendorCompany) + '</td></tr>' : '')
+    + (data.storeCode     ? '<tr><td style="color:#4a6080;font-size:.75rem;padding:2px 0">Store Code</td><td style="color:#1a202c;font-size:.85rem;font-family:monospace;letter-spacing:.05em">' + htmlEscape_(data.storeCode) + '</td></tr>' : '')
+    + (data.contactName   ? '<tr><td style="color:#4a6080;font-size:.75rem;padding:2px 0">Contact</td><td style="color:#1a202c;font-size:.85rem">' + htmlEscape_(data.contactName) + '</td></tr>' : '')
+    + (data.customerEmail ? '<tr><td style="color:#4a6080;font-size:.75rem;padding:2px 0">Email</td><td style="color:#1a202c;font-size:.85rem">' + htmlEscape_(data.customerEmail) + '</td></tr>' : '')
+    + (data.agentName     ? '<tr><td style="color:#4a6080;font-size:.75rem;padding:2px 0">Agent</td><td style="color:#1a202c;font-size:.85rem">' + htmlEscape_(data.agentName) + '</td></tr>' : '')
     + '</table>'
     + '</div>'
     + '<div style="padding:24px">'
@@ -338,7 +393,7 @@ function sendOrderEmail(data) {
     + row2('Dealer Total',            '$' + data.totalDealer.toFixed(2))
     + '<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:6px"><tr><td style="color:#718096">Retail Value (SRP)</td><td align="right" style="color:#2d9c5e">$' + data.totalRetail.toFixed(2) + '</td></tr></table>'
     + '</div>'
-    + (data.comments ? '<div style="margin-top:16px;padding:12px 14px;background:#fffbeb;border-left:3px solid #f6ad55;border-radius:4px"><strong style="font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;color:#92400e">Comments</strong><p style="margin:4px 0 0;color:#1a202c;font-size:.9rem">' + data.comments + '</p></div>' : '')
+    + (data.comments ? '<div style="margin-top:16px;padding:12px 14px;background:#fffbeb;border-left:3px solid #f6ad55;border-radius:4px"><strong style="font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;color:#92400e">Comments</strong><p style="margin:4px 0 0;color:#1a202c;font-size:.9rem">' + htmlEscape_(data.comments) + '</p></div>' : '')
     + '</div></div>';
 
   MailApp.sendEmail({ to: ORDER_EMAIL, subject: 'New Terra Nova Order — ' + data.orderId, htmlBody: html });
@@ -413,7 +468,7 @@ function handleGetOrders() {
 
 /* ── Orders: update line quantities ─────────────────────── */
 function handleUpdateOrderLines(e) {
-  var payload = JSON.parse(e.parameter.payload);
+  var payload = JSON.parse(getPayload_(e));
   var orderId = payload.orderId;
   var lines   = payload.lines; // [{name, qty, units, lineDealer, lineSRP}]
 
@@ -465,7 +520,7 @@ function handleUpdateOrderLines(e) {
 
 /* ── Orders: update status checkbox ─────────────────────── */
 function handleUpdateOrderStatus(e) {
-  var payload = JSON.parse(e.parameter.payload);
+  var payload = JSON.parse(getPayload_(e));
   var orderId = payload.orderId;
   var field   = payload.field;
   var value   = payload.value;
@@ -528,7 +583,7 @@ function handleGetVendors() {
 }
 
 function handleSaveVendors(e) {
-  var vendors = JSON.parse(e.parameter.payload);
+  var vendors = JSON.parse(getPayload_(e));
   var ss    = getSpreadsheet();
   var sheet = ss.getSheetByName(VENDORS_SHEET);
   if (!sheet) sheet = ss.insertSheet(VENDORS_SHEET);
@@ -570,8 +625,9 @@ function handleSaveVendors(e) {
  * or      { status:'notfound' }
  */
 function handleLookupStore(e) {
-  var vendorCode = ((e.parameter && e.parameter.vendorCode) || '').trim().toUpperCase();
-  var storeCode  = ((e.parameter && e.parameter.storeCode)  || '').trim().toUpperCase();
+  var request = parseRequest_(e);
+  var vendorCode = String(request.body.vendorCode || ((e.parameter && e.parameter.vendorCode) || '')).trim().toUpperCase();
+  var storeCode  = String(request.body.storeCode  || ((e.parameter && e.parameter.storeCode)  || '')).trim().toUpperCase();
   if (!vendorCode || !storeCode) return json({ status: 'notfound' });
 
   var ss    = getSpreadsheet();
@@ -604,7 +660,7 @@ function handleLookupStore(e) {
  * On update: only firstName/lastName/email change; vendorCode/company/storeCode preserved.
  */
 function handleSaveStore(e) {
-  var data       = JSON.parse(e.parameter.payload);
+  var data       = JSON.parse(getPayload_(e));
   var vendorCode = String(data.vendorCode || '').trim().toUpperCase();
   var storeCode  = String(data.storeCode  || '').trim().toUpperCase();
   if (!vendorCode || !storeCode) return json({ status: 'error', message: 'Missing vendorCode or storeCode' });
@@ -627,9 +683,9 @@ function handleSaveStore(e) {
     if (rowVendor === vendorCode && rowStore === storeCode) {
       // Update contact columns (4-6); preserve code, company, storeCode
       sheet.getRange(i + 1, 4, 1, 3).setValues([[
-        data.firstName || '',
-        data.lastName  || '',
-        data.email     || '',
+        safeSheetText_(data.firstName || ''),
+        safeSheetText_(data.lastName  || ''),
+        safeSheetText_(data.email     || ''),
       ]]);
       return json({ status: 'ok', action: 'updated' });
     }
@@ -638,11 +694,11 @@ function handleSaveStore(e) {
   // New store-contact row
   sheet.appendRow([
     vendorCode,
-    data.company   || '',
+    safeSheetText_(data.company   || ''),
     storeCode,
-    data.firstName || '',
-    data.lastName  || '',
-    data.email     || '',
+    safeSheetText_(data.firstName || ''),
+    safeSheetText_(data.lastName  || ''),
+    safeSheetText_(data.email     || ''),
   ]);
   return json({ status: 'ok', action: 'inserted' });
 }
@@ -655,8 +711,9 @@ function handleSaveStore(e) {
  * Schema: code | company | storeCode | firstName | lastName | email
  */
 function handleGetStoreContacts(e) {
-  var filterVendor = (e.parameter && e.parameter.vendorCode)
-    ? e.parameter.vendorCode.trim().toUpperCase() : null;
+  var request = parseRequest_(e);
+  var rawFilterVendor = request.body.vendorCode || (e.parameter && e.parameter.vendorCode);
+  var filterVendor = rawFilterVendor ? String(rawFilterVendor).trim().toUpperCase() : null;
 
   var ss    = getSpreadsheet();
   var sheet = ss.getSheetByName(VENDORS_SHEET);
@@ -685,8 +742,9 @@ function handleGetStoreContacts(e) {
  * deleteStore — remove a store-contact row by vendorCode + storeCode.
  */
 function handleDeleteStore(e) {
-  var vendorCode = ((e.parameter && e.parameter.vendorCode) || '').trim().toUpperCase();
-  var storeCode  = ((e.parameter && e.parameter.storeCode)  || '').trim().toUpperCase();
+  var request = parseRequest_(e);
+  var vendorCode = String(request.body.vendorCode || ((e.parameter && e.parameter.vendorCode) || '')).trim().toUpperCase();
+  var storeCode  = String(request.body.storeCode  || ((e.parameter && e.parameter.storeCode)  || '')).trim().toUpperCase();
   if (!vendorCode || !storeCode) return json({ status: 'error', message: 'Missing vendorCode or storeCode' });
 
   var ss    = getSpreadsheet();
@@ -709,8 +767,11 @@ function handleDeleteStore(e) {
 /* ── Admin password verification ─────────────────────────── */
 function handleVerifyPassword(e) {
   var pw = e && e.parameter && e.parameter.pw ? e.parameter.pw : '';
-  if (pw === ADMIN_PASSWORD) {
-    return json({ ok: true });
+  if (!pw && e && e.postData && e.postData.contents) {
+    try { pw = JSON.parse(e.postData.contents).pw || ''; } catch (err) {}
+  }
+  if (pw && pw === getAdminPassword_()) {
+    return json({ ok: true, token: createAdminToken_() });
   }
   return json({ ok: false });
 }
@@ -721,16 +782,222 @@ function json(obj) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 function th(text, align) {
-  return '<th style="padding:8px 12px;text-align:' + (align||'left') + ';font-size:.75rem;text-transform:uppercase;letter-spacing:.05em">' + text + '</th>';
+  return '<th style="padding:8px 12px;text-align:' + (align||'left') + ';font-size:.75rem;text-transform:uppercase;letter-spacing:.05em">' + htmlEscape_(text) + '</th>';
 }
 function td(text, align) {
-  return '<td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:' + (align||'left') + '">' + text + '</td>';
+  return '<td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:' + (align||'left') + '">' + htmlEscape_(text) + '</td>';
 }
 function row2(label, value, color) {
   return '<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:6px">'
     + '<tr>'
-    + '<td style="color:#718096">' + label + '</td>'
-    + '<td align="right"><strong style="color:' + (color||'#1a202c') + '">' + value + '</strong></td>'
+    + '<td style="color:#718096">' + htmlEscape_(label) + '</td>'
+    + '<td align="right"><strong style="color:' + (color||'#1a202c') + '">' + htmlEscape_(value) + '</strong></td>'
     + '</tr>'
     + '</table>';
+}
+
+function getAdminPassword_() {
+  var pw = PropertiesService.getScriptProperties().getProperty('ADMIN_PASSWORD');
+  if (!pw) throw new Error('ADMIN_PASSWORD not set in Script Properties');
+  return pw;
+}
+
+function parseRequest_(e) {
+  var params = (e && e.parameter) ? e.parameter : {};
+  var body = {};
+  if (e && e.postData && e.postData.contents) {
+    try { body = JSON.parse(e.postData.contents); } catch (err) {}
+  }
+  return {
+    action: body.action || params.action || '',
+    token: body.token || params.token || '',
+    body: body,
+  };
+}
+
+function getPayload_(e) {
+  var request = parseRequest_(e);
+  if (request.body && request.body.payload !== undefined) return request.body.payload;
+  return e && e.parameter ? e.parameter.payload : undefined;
+}
+
+function getAdminTokenSecret_() {
+  return PropertiesService.getScriptProperties().getProperty('ADMIN_TOKEN_SECRET') || getAdminPassword_();
+}
+
+function createAdminToken_() {
+  var timestamp = String(Date.now());
+  return timestamp + '.' + signAdminToken_(timestamp);
+}
+
+function isValidAdminToken_(token) {
+  if (!token) return false;
+  var parts = String(token).split('.');
+  if (parts.length !== 2) return false;
+  var timestamp = Number(parts[0]);
+  if (!timestamp || (Date.now() - timestamp) > ADMIN_TOKEN_TTL_MS) return false;
+  return parts[1] === signAdminToken_(parts[0]);
+}
+
+function signAdminToken_(value) {
+  var secret = getAdminTokenSecret_();
+  var bytes = Utilities.computeHmacSha256Signature(String(value), secret);
+  return Utilities.base64EncodeWebSafe(bytes).replace(/=+$/, '');
+}
+
+function normalizeSubmittedOrder_(data) {
+  if (!data || !Array.isArray(data.lines) || data.lines.length === 0) {
+    throw new Error('Order must include at least one line');
+  }
+
+  var vendorCode = String(data.vendorCode || '').trim().toUpperCase();
+  var products = getProductIndex_();
+  var lines = [];
+  var totalOrderUnits = 0;
+  var totalIndividualUnits = 0;
+  var totalDealer = 0;
+  var totalRetail = 0;
+
+  data.lines.forEach(function(line) {
+    var productId = String(line.id || '').trim();
+    var product = products[productId];
+    var qty = Math.floor(Number(line.qty) || 0);
+    if (!product) throw new Error('Unknown product id: ' + productId);
+    if (qty <= 0) throw new Error('Invalid quantity for product: ' + product.name);
+    if (product.status !== 'available') throw new Error('Product is unavailable: ' + product.name);
+    if (!productAllowedForVendor_(product, vendorCode)) throw new Error('Product not allowed for vendor: ' + product.name);
+
+    var units = qty * product.unitsPerOrder;
+    var dealerUnit = product.dealerUnit;
+    var srpUnit = product.srp;
+    var lineDealer = units * dealerUnit;
+    var lineSRP = units * srpUnit;
+
+    totalOrderUnits += qty;
+    totalIndividualUnits += units;
+    totalDealer += lineDealer;
+    totalRetail += lineSRP;
+
+    lines.push({
+      id: productId,
+      name: product.name,
+      sku: product.sku,
+      barcode: product.barcode,
+      orderUnit: product.orderUnit,
+      unitLabel: product.unitLabel,
+      qty: qty,
+      units: units,
+      dealerUnit: dealerUnit,
+      lineDealer: lineDealer,
+      srpUnit: srpUnit,
+      lineSRP: lineSRP,
+    });
+  });
+
+  return {
+    lines: lines,
+    totalOrderUnits: totalOrderUnits,
+    totalIndividualUnits: totalIndividualUnits,
+    totalDealer: totalDealer,
+    totalRetail: totalRetail,
+  };
+}
+
+function getProductIndex_() {
+  var ss = getSpreadsheet();
+  var sheet = ss.getSheetByName(PRODUCTS_SHEET);
+  if (!sheet || sheet.getLastRow() < 2) throw new Error('Products sheet is empty');
+  var rows = sheet.getDataRange().getValues();
+  var headers = rows[0];
+  var index = {};
+
+  rows.slice(1).forEach(function(row) {
+    if (row[0] === '') return;
+    var product = {};
+    headers.forEach(function(header, i) { product[header] = row[i]; });
+    var cost = Number(product.cost || 0);
+    index[String(product.id)] = {
+      id: String(product.id),
+      name: String(product.name || ''),
+      sku: String(product.sku || ''),
+      barcode: String(product.barcode || ''),
+      orderUnit: String(product.orderUnit || 'unit'),
+      unitLabel: String(product.unitLabel || 'units'),
+      unitsPerOrder: Math.max(1, Math.floor(Number(product.unitsPerOrder) || 1)),
+      srp: Number(product.srp || 0),
+      dealerUnit: Number(product.dealer || (cost * 1.11) || 0),
+      status: String(product.status || ((product.available === false || product.available === 'FALSE') ? 'unavailable' : 'available')),
+      vendorCodes: String(product.vendorCodes || '[]'),
+    };
+  });
+  return index;
+}
+
+function productAllowedForVendor_(product, vendorCode) {
+  var codes = [];
+  try { codes = JSON.parse(product.vendorCodes || '[]'); } catch (err) {}
+  if (!codes.length) return true;
+  return codes.map(function(code) { return String(code).toUpperCase(); }).indexOf(vendorCode) !== -1;
+}
+
+function normalizeImageFilename_(filename) {
+  var clean = String(filename || '').toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9._-]/g, '');
+  if (!/^[a-z0-9][a-z0-9._-]*\.(png|jpg|jpeg|webp|gif|avif)$/i.test(clean)) {
+    throw new Error('Invalid image filename');
+  }
+  return clean;
+}
+
+function uploadGithubImage_(filename, contentBase64) {
+  var pat = PropertiesService.getScriptProperties().getProperty('GITHUB_PAT');
+  if (!pat) throw new Error('GITHUB_PAT not set in Script Properties');
+
+  var apiUrl = 'https://api.github.com/repos/terranovamtlai/orderform/contents/images/' + encodeURIComponent(filename);
+  var headers = {
+    Authorization: 'token ' + pat,
+    Accept: 'application/vnd.github+json',
+  };
+
+  var sha = null;
+  var checkRes = UrlFetchApp.fetch(apiUrl, {
+    method: 'get',
+    headers: headers,
+    muteHttpExceptions: true,
+  });
+  if (checkRes.getResponseCode() === 200) {
+    sha = JSON.parse(checkRes.getContentText()).sha;
+  }
+
+  var payload = {
+    message: 'Add product image: ' + filename,
+    content: contentBase64,
+    branch: 'main',
+  };
+  if (sha) payload.sha = sha;
+
+  var uploadRes = UrlFetchApp.fetch(apiUrl, {
+    method: 'put',
+    headers: headers,
+    contentType: 'application/json',
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true,
+  });
+  if (uploadRes.getResponseCode() < 200 || uploadRes.getResponseCode() >= 300) {
+    throw new Error('GitHub upload failed: ' + uploadRes.getContentText());
+  }
+}
+
+function htmlEscape_(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function safeSheetText_(value) {
+  var text = String(value == null ? '' : value);
+  if (/^[=+\-@]/.test(text)) return "'" + text;
+  return text;
 }

@@ -4,7 +4,16 @@
 # Local Node.js dependencies
 node_modules/
 dist/
+.next/
+.vercel/
+*.tsbuildinfo
+__pycache__/
+test-results/
+playwright-report/
+migration-data/
 
 # System files
 .DS_Store
 Thumbs.db
+.env*
+!.env.example

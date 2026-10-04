@@ -1,5 +1,11 @@
 # CLAUDE.md
 
+## Database-backed rebuild (current development)
+
+Use `npm run dev`, `npm run typecheck`, `npm test`, and `npm run build` for the Next.js app in `src/`. Read `README.md` for architecture, migrations, OAuth setup, email worker and deployment. Database migrations live in `migrations/` and are run explicitly with `npm run db:migrate`; never run them during builds. `.env.local` contains secrets and must never be printed, committed, or copied to an unverified cloud account. The current branch is `rebuild/vercel-postgres`. Preserve the pre-existing local changes in the legacy app files.
+
+The documentation below describes the legacy application kept as a migration reference, not the active Next.js server. Some legacy descriptions are outdated; use source code and the rebuild plan for authoritative behavior.
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Running the App

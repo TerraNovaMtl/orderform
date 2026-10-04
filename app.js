@@ -34,6 +34,34 @@ function profitPct(p) {
   return ((p.srp - p.dealer) / p.srp * 100).toFixed(1);
 }
 
+function escHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function safeImageSrc(img) {
+  return 'images/' + String(img || '').replace(/^images\//, '').replace(/[^a-zA-Z0-9._/-]/g, '');
+}
+
+function csvCell(value) {
+  const text = String(value == null ? '' : value);
+  const safe = /^[=+\-@]/.test(text) ? "'" + text : text;
+  return `"${safe.replace(/"/g, '""')}"`;
+}
+
+async function postJson(action, body) {
+  const res = await fetch(`${SHEETS_WEBHOOK_URL}?action=${encodeURIComponent(action)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, ...body }),
+  });
+  return res.json();
+}
+
 /* ============================================================
    RENDER PRODUCT TABLE  (grouped by category, collapsible)
    ============================================================ */
@@ -93,18 +121,18 @@ function makeProductRow(p) {
     <tr data-id="${p.id}" class="${!avail ? 'product-unavailable' : ''}">
       <td>
         <div class="product-cell">
-          <img class="product-img" src="images/${p.img.replace(/^images\//, '')}" alt="${p.name}" loading="lazy" />
+          <img class="product-img" src="${safeImageSrc(p.img)}" alt="${escHtml(p.name)}" loading="lazy" />
           <div>
-            <div class="product-name">${p.name}${!avail ? ' <span class="unavail-badge">Unavailable</span>' : ''}</div>
-            ${p.description ? `<div class="product-description">${p.description}</div>` : ''}
-            <div class="product-desc">1 ${p.orderUnit} = ${p.unitsPerOrder} ${p.unitLabel}</div>
+            <div class="product-name">${escHtml(p.name)}${!avail ? ' <span class="unavail-badge">Unavailable</span>' : ''}</div>
+            ${p.description ? `<div class="product-description">${escHtml(p.description)}</div>` : ''}
+            <div class="product-desc">1 ${escHtml(p.orderUnit)} = ${p.unitsPerOrder} ${escHtml(p.unitLabel)}</div>
           </div>
         </div>
       </td>
-      <td><span class="style-text">${p.style || ''}</span></td>
+      <td><span class="style-text">${escHtml(p.style || '')}</span></td>
       <td>
-        <div class="barcode-text">${p.barcode}</div>
-        <div class="barcode-text">${p.sku}</div>
+        <div class="barcode-text">${escHtml(p.barcode)}</div>
+        <div class="barcode-text">${escHtml(p.sku)}</div>
       </td>
       <td><span class="wholesale-text">${fmt(p.cost || 0)}</span></td>
       <td><span class="wholesale-text">${fmt(p.dealer)}</span></td>
@@ -117,7 +145,7 @@ function makeProductRow(p) {
           <input  class="qty-input" type="number" min="0" step="1"
                   value="${order[p.id] || 0}"
                   data-id="${p.id}"
-                  aria-label="Order quantity for ${p.name}" />
+                  aria-label="Order quantity for ${escHtml(p.name)}" />
           <button class="qty-btn btn-inc" data-id="${p.id}" aria-label="Increase quantity">+</button>
         </div>
         <div class="unit-label">${p.orderUnit}s</div>` : `
@@ -164,9 +192,9 @@ function updateSummary() {
     totalRetail          += lineS;
     return `
       <li>
-        <span class="item-name">${p.name}</span>
+        <span class="item-name">${escHtml(p.name)}</span>
         <span class="item-value">${fmt(lineW)}</span>
-        <span class="item-detail">${qty} ${p.orderUnit}${qty !== 1 ? 's' : ''} &middot; ${units} ${p.unitLabel}</span>
+        <span class="item-detail">${qty} ${escHtml(p.orderUnit)}${qty !== 1 ? 's' : ''} &middot; ${units} ${escHtml(p.unitLabel)}</span>
       </li>
     `;
   }).join('');
@@ -250,18 +278,11 @@ document.getElementById('btnClear').addEventListener('click', () => {
    ============================================================ */
 
 async function lookupStoreAPI(vendorCode, storeCode) {
-  const url = SHEETS_WEBHOOK_URL
-    + '?action=lookupStore'
-    + '&vendorCode=' + encodeURIComponent(vendorCode)
-    + '&storeCode='  + encodeURIComponent(storeCode);
-  const res = await fetch(url);
-  return res.json();
+  return postJson('lookupStore', { vendorCode, storeCode });
 }
 
 async function saveStoreAPI(storeData) {
-  const url = SHEETS_WEBHOOK_URL + '?action=saveStore&payload=' + encodeURIComponent(JSON.stringify(storeData));
-  const res = await fetch(url);
-  return res.json();
+  return postJson('saveStore', { payload: JSON.stringify(storeData) });
 }
 
 /** Main orchestrator — loops until currentStore is set. */
@@ -348,9 +369,9 @@ function showStoreConfirmDialog(storeData, company) {
     document.getElementById('storeConfirmSub').textContent = company || '';
 
     infoEl.innerHTML =
-      '<div class="store-confirm-name">'    + storeData.firstName + ' ' + storeData.lastName + '</div>' +
-      '<div class="store-confirm-email">'   + storeData.email     + '</div>' +
-      '<div class="store-confirm-code">Store: ' + storeData.storeCode + '</div>';
+      '<div class="store-confirm-name">'    + escHtml(storeData.firstName) + ' ' + escHtml(storeData.lastName) + '</div>' +
+      '<div class="store-confirm-email">'   + escHtml(storeData.email)     + '</div>' +
+      '<div class="store-confirm-code">Store: ' + escHtml(storeData.storeCode) + '</div>';
 
     const ac = new AbortController();
     function done(v) { ac.abort(); dialog.close(); resolve(v); }
@@ -475,7 +496,7 @@ function buildDialogBodyHTML({ lines, totalOrderUnits, totalIndividualUnits, tot
     customerEmail ? ['Email',    customerEmail] : null,
     agentName   ? ['Agent',      agentName]  : null,
   ].filter(Boolean).map(([label, val]) => `
-    <tr><th>${label}</th><td>${val}</td></tr>
+    <tr><th>${escHtml(label)}</th><td>${escHtml(val)}</td></tr>
   `).join('');
 
   const storeInfoTable = storeRows ? `
@@ -486,10 +507,10 @@ function buildDialogBodyHTML({ lines, totalOrderUnits, totalIndividualUnits, tot
 
   const rows = lines.map(({ p, qty, units, lineW }) => `
     <tr>
-      <td>${p.name}</td>
-      <td style="font-family:monospace;font-size:.78rem">${p.sku}</td>
-      <td style="text-align:center;font-weight:700">${qty} <small style="font-weight:400;color:#718096">${p.orderUnit}${qty !== 1 ? 's' : ''}</small></td>
-      <td style="text-align:center">${units} <small style="color:#718096">${p.unitLabel}</small></td>
+      <td>${escHtml(p.name)}</td>
+      <td style="font-family:monospace;font-size:.78rem">${escHtml(p.sku)}</td>
+      <td style="text-align:center;font-weight:700">${qty} <small style="font-weight:400;color:#718096">${escHtml(p.orderUnit)}${qty !== 1 ? 's' : ''}</small></td>
+      <td style="text-align:center">${units} <small style="color:#718096">${escHtml(p.unitLabel)}</small></td>
       <td style="text-align:right">${fmt(p.cost || 0)}</td>
       <td style="text-align:right">${fmt(p.dealer)}</td>
       <td style="text-align:right;font-weight:700">${fmt(lineW)}</td>
@@ -615,7 +636,7 @@ document.getElementById('btnConfirmSubmit').addEventListener('click', async () =
     : '<div class="success-order-id">Order ' + orderId + '</div>'
       + '<div class="success-received">&#10003;&nbsp; We have received your order and will be in touch shortly.</div>'
       + '<div class="success-thankyou">'
-      + (confirmedOrder.customerEmail ? 'A confirmation has been sent to <strong>' + confirmedOrder.customerEmail + '</strong>.<br>' : '')
+      + (confirmedOrder.customerEmail ? 'A confirmation has been sent to <strong>' + escHtml(confirmedOrder.customerEmail) + '</strong>.<br>' : '')
       + 'Thank you for your business. &nbsp;—&nbsp; Terra Nova'
       + '</div>';
   document.getElementById('footConfirmed').hidden = false;
@@ -634,6 +655,7 @@ document.getElementById('btnNewOrder').addEventListener('click', () => {
 async function submitToGoogleSheet(data) {
   const payload = {
     lines: data.lines.map(({ p, qty, units, lineW, lineS }) => ({
+      id:            p.id,
       name:          p.name,
       sku:           p.sku,
       barcode:       p.barcode,
@@ -661,8 +683,11 @@ async function submitToGoogleSheet(data) {
 
   // Use GET + URL params — POST bodies are silently dropped by Google's
   // 302 redirect, but URL params survive it. This is the reliable approach.
-  const url = SHEETS_WEBHOOK_URL + '?payload=' + encodeURIComponent(JSON.stringify(payload));
-  const res  = await fetch(url);
+  const res  = await fetch(`${SHEETS_WEBHOOK_URL}?action=submitOrder`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'submitOrder', payload: JSON.stringify(payload) }),
+  });
   const json = await res.json();
   return json.orderId || null;
 }
@@ -685,7 +710,7 @@ document.getElementById('btnCSV') && document.getElementById('btnCSV').addEventL
   ]);
 
   const csv = [header, ...rows]
-    .map(r => r.map(c => `"${c}"`).join(','))
+    .map(r => r.map(c => csvCell(c)).join(','))
     .join('\n');
 
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -710,10 +735,10 @@ document.getElementById('btnPrint') && document.getElementById('btnPrint').addEv
 
   const rows = lines.map(({ p, qty, units, lineW }) => `
     <tr>
-      <td>${p.name}</td>
-      <td>${p.sku}</td>
-      <td style="text-align:center">${qty} ${p.orderUnit}${qty !== 1 ? 's' : ''}</td>
-      <td style="text-align:center">${units} ${p.unitLabel}</td>
+      <td>${escHtml(p.name)}</td>
+      <td>${escHtml(p.sku)}</td>
+      <td style="text-align:center">${qty} ${escHtml(p.orderUnit)}${qty !== 1 ? 's' : ''}</td>
+      <td style="text-align:center">${units} ${escHtml(p.unitLabel)}</td>
       <td style="text-align:right">${fmt(p.cost || 0)}</td>
       <td style="text-align:right">${fmt(p.dealer)}</td>
       <td style="text-align:right;font-weight:700">${fmt(lineW)}</td>
@@ -795,7 +820,7 @@ document.getElementById('productBody').addEventListener('click', e => {
   if (!img) return;
   const id = parseInt(img.closest('tr').dataset.id, 10);
   const product = products.find(p => p.id === id);
-  lightboxImg.src = 'images/' + product.img.replace(/^images\//, '');
+  lightboxImg.src = safeImageSrc(product.img);
   lightboxImg.alt = product.name;
   lightboxCaption.textContent = product.name;
   lightbox.showModal();

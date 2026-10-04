@@ -759,10 +759,16 @@
   <script>
     const WEBHOOK     = 'https://script.google.com/macros/s/AKfycbwvveBT8M11c2gCZ0utPNySEQtwtbH2G7OxDePMeX41DkeC6Jr3bSiIfBxcRhKftcZ1Wg/exec';
     const SESSION_KEY = 'tn_admin_auth';
-    const SESSION_PW  = 'tn_admin_pw';
+    const SESSION_TOKEN  = 'tn_admin_token';
 
-    // Returns the stored password URL-encoded, for appending to admin API calls
-    function apw() { return encodeURIComponent(sessionStorage.getItem(SESSION_PW) || ''); }
+    async function postAdmin(action, body) {
+      const res = await fetch(`${WEBHOOK}?action=${encodeURIComponent(action)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, token: sessionStorage.getItem(SESSION_TOKEN) || '', ...body }),
+      });
+      return res.json();
+    }
 
     const DEFAULTS = [
       { id:1, name:'Bacon Socks',                    barcode:'644197322967', sku:'687 0362', srp:15.99, cost:0, img:'image2.png',  orderUnit:'display', unitsPerOrder:6, unitLabel:'pairs', category:'Gift Novelties', status:'available', vendorCodes:'[]' },
@@ -792,11 +798,15 @@
       const btn = document.querySelector('#loginScreen button');
       btn.disabled = true;
       try {
-        const res  = await fetch(WEBHOOK + '?action=verifyPassword&pw=' + encodeURIComponent(pw));
+        const res  = await fetch(WEBHOOK + '?action=verifyPassword', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pw }),
+        });
         const data = await res.json();
-        if (data.ok) {
+        if (data.ok && data.token) {
           sessionStorage.setItem(SESSION_KEY, '1');
-          sessionStorage.setItem(SESSION_PW, pw);
+          sessionStorage.setItem(SESSION_TOKEN, data.token);
           document.getElementById('loginScreen').style.display  = 'none';
           document.getElementById('adminContent').style.display = 'block';
           loadProducts();
@@ -816,13 +826,13 @@
 
     function logout() {
       sessionStorage.removeItem(SESSION_KEY);
-      sessionStorage.removeItem(SESSION_PW);
+      sessionStorage.removeItem(SESSION_TOKEN);
       document.getElementById('loginScreen').style.display  = 'flex';
       document.getElementById('adminContent').style.display = 'none';
       document.getElementById('pwInput').value = '';
     }
 
-    if (sessionStorage.getItem(SESSION_KEY) && sessionStorage.getItem(SESSION_PW)) {
+    if (sessionStorage.getItem(SESSION_KEY) && sessionStorage.getItem(SESSION_TOKEN)) {
       document.getElementById('loginScreen').style.display  = 'none';
       document.getElementById('adminContent').style.display = 'block';
       loadProducts();
@@ -869,11 +879,11 @@
       setVendorStatus('loading', 'Loading vendors\u2026');
       try {
         const [vRes, sRes] = await Promise.all([
-          fetch(`${WEBHOOK}?action=getVendors&pw=${apw()}`),
-          fetch(`${WEBHOOK}?action=getStoreContacts`),
+          postAdmin('getVendors', {}),
+          postAdmin('getStoreContacts', {}),
         ]);
-        allVendors       = await vRes.json();
-        allStoreContacts = await sRes.json();
+        allVendors       = vRes;
+        allStoreContacts = sRes;
         renderVendorTable();
         setVendorStatus('success', allVendors.length + ' vendor(s) loaded.');
       } catch (err) {
@@ -1010,11 +1020,10 @@
       try {
         // If store code changed, delete the old row first
         if (newCode !== oldStoreCode.toUpperCase()) {
-          await fetch(WEBHOOK + '?action=deleteStore&pw=' + apw() + '&vendorCode=' + encodeURIComponent(vendorCode) + '&storeCode=' + encodeURIComponent(oldStoreCode));
+          await postAdmin('deleteStore', { vendorCode, storeCode: oldStoreCode });
         }
         const payload = { vendorCode, storeCode: newCode, company, firstName, lastName, email };
-        const res  = await fetch(WEBHOOK + '?action=saveStore&payload=' + encodeURIComponent(JSON.stringify(payload)));
-        const data = await res.json();
+        const data = await postAdmin('saveStore', { payload: JSON.stringify(payload) });
         if (data.status !== 'ok') throw new Error(data.message || 'Error');
         // Update in memory
         const idx = allStoreContacts.findIndex(function(s) {
@@ -1034,8 +1043,7 @@
     async function deleteStoreContact(vendorCode, storeCode) {
       if (!confirm('Delete store contact "' + storeCode + '"? This cannot be undone.')) return;
       try {
-        const res  = await fetch(WEBHOOK + '?action=deleteStore&pw=' + apw() + '&vendorCode=' + encodeURIComponent(vendorCode) + '&storeCode=' + encodeURIComponent(storeCode));
-        const data = await res.json();
+        const data = await postAdmin('deleteStore', { vendorCode, storeCode });
         if (data.status !== 'ok') throw new Error(data.message || 'Error');
         allStoreContacts = allStoreContacts.filter(function(s) {
           return !(String(s.vendorCode || '').toUpperCase() === String(vendorCode || '').toUpperCase()
@@ -1083,9 +1091,7 @@
       const vendors = collectVendors();
       setVendorStatus('loading', 'Saving\u2026');
       try {
-        const url  = WEBHOOK + '?action=saveVendors&pw=' + apw() + '&payload=' + encodeURIComponent(JSON.stringify(vendors));
-        const res  = await fetch(url);
-        const data = await res.json();
+        const data = await postAdmin('saveVendors', { payload: JSON.stringify(vendors) });
         if (data.status === 'ok') {
           allVendors = vendors;
           setVendorStatus('success', '\u2713 ' + vendors.length + ' vendor(s) saved.');
@@ -1146,13 +1152,6 @@
       statusEl.textContent  = 'Uploading…';
 
       try {
-        // Get PAT from Apps Script
-        const tokenRes  = await fetch(`${WEBHOOK}?action=getUploadToken&pw=${apw()}`);
-        const tokenData = await tokenRes.json();
-        if (tokenData.status !== 'ok') throw new Error(tokenData.message);
-        const pat = tokenData.token;
-
-        // Read file as base64
         const base64 = await new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.onload  = () => resolve(reader.result.split(',')[1]);
@@ -1161,33 +1160,14 @@
         });
 
         const filename = file.name.toLowerCase().replace(/\s+/g, '_');
-        const apiUrl   = `https://api.github.com/repos/terranovamtlai/orderform/contents/images/${filename}`;
-
-        // Check if file already exists (need sha to update)
-        let sha = null;
-        const checkRes = await fetch(apiUrl, { headers: { Authorization: `token ${pat}` } });
-        if (checkRes.ok) {
-          sha = (await checkRes.json()).sha;
-        }
-
-        const body = { message: `Add product image: ${filename}`, content: base64, branch: 'main' };
-        if (sha) body.sha = sha;
-
-        const uploadRes = await fetch(apiUrl, {
-          method:  'PUT',
-          headers: { Authorization: `token ${pat}`, 'Content-Type': 'application/json' },
-          body:    JSON.stringify(body),
-        });
-        if (!uploadRes.ok) {
-          const err = await uploadRes.json();
-          throw new Error(err.message || 'GitHub API error');
-        }
+        const uploadData = await postAdmin('uploadImage', { filename, contentBase64: base64 });
+        if (uploadData.status !== 'ok') throw new Error(uploadData.message || 'Upload failed');
 
         // Update filename field and preview to committed path
-        filenameEl.value = filename;
-        preview.src      = `images/${filename}`;
+        filenameEl.value = uploadData.filename;
+        preview.src      = uploadData.path;
         statusEl.style.color = '#2d9c5e';
-        statusEl.textContent = `✓ Uploaded: ${filename}`;
+        statusEl.textContent = `✓ Uploaded: ${uploadData.filename}`;
         URL.revokeObjectURL(localUrl);
 
       } catch (err) {
@@ -1200,9 +1180,7 @@
 
     async function persistProduct(p) {
       try {
-        const url = `${WEBHOOK}?action=saveProduct&pw=${apw()}&payload=${encodeURIComponent(JSON.stringify(p))}`;
-        const res  = await fetch(url);
-        const data = await res.json();
+        const data = await postAdmin('saveProduct', { payload: JSON.stringify(p) });
         if (data.status !== 'ok') throw new Error(data.message || 'Unknown error');
         toast('Saved', 'success');
       } catch (err) {
@@ -1213,9 +1191,7 @@
 
     async function persistDeleteProduct(id) {
       try {
-        const url = `${WEBHOOK}?action=deleteProduct&pw=${apw()}&id=${encodeURIComponent(id)}`;
-        const res  = await fetch(url);
-        const data = await res.json();
+        const data = await postAdmin('deleteProduct', { id });
         if (data.status !== 'ok') throw new Error(data.message || 'Unknown error');
       } catch (err) {
         toast('Delete failed: ' + err.message, 'error');
@@ -1250,10 +1226,10 @@
       try {
         const [prodRes, vendorRes] = await Promise.all([
           fetch(`${WEBHOOK}?action=getProducts`),
-          fetch(`${WEBHOOK}?action=getVendors&pw=${apw()}`),
+          postAdmin('getVendors', {}),
         ]);
         const data   = await prodRes.json();
-        const vdata  = await vendorRes.json();
+        const vdata  = vendorRes;
         if (Array.isArray(vdata)) allVendors = vdata;
         const raw  = (Array.isArray(data) && data.length > 0) ? data : DEFAULTS;
         allProducts = raw.map((p, i) => ({
@@ -1303,7 +1279,7 @@
             <div class="cat-header" onclick="toggleCatAdmin('${escapedCat}')">
               <div class="cat-header-left">
                 <span class="cat-arrow" id="arrow_${id}">${expanded ? '▼' : '▶'}</span>
-                <span>${cat}</span>
+                <span>${escH(cat)}</span>
                 <span class="cat-count">${items.length} product${items.length !== 1 ? 's' : ''}</span>
               </div>
             </div>
@@ -1324,22 +1300,22 @@
                     <tbody>
                       ${items.map(({ p, i }) => `
                         <tr>
-                          <td><img class="prod-thumb" src="images/${p.img.replace(/^images\//, '')}" onerror="this.src='images/image1.png'" /></td>
+                          <td><img class="prod-thumb" src="images/${String(p.img || '').replace(/^images\//, '').replace(/[^a-zA-Z0-9._/-]/g, '')}" onerror="this.src='images/image1.png'" /></td>
                           <td>
-                            <div class="prod-name">${p.name}</div>
-                            ${p.description ? `<div class="prod-description">${p.description}</div>` : ''}
-                            <div class="prod-meta" style="margin-top:2px">1 ${p.orderUnit} = ${p.unitsPerOrder} ${p.unitLabel}</div>
+                            <div class="prod-name">${escH(p.name)}</div>
+                            ${p.description ? `<div class="prod-description">${escH(p.description)}</div>` : ''}
+                            <div class="prod-meta" style="margin-top:2px">1 ${escH(p.orderUnit)} = ${p.unitsPerOrder} ${escH(p.unitLabel)}</div>
                           </td>
-                          <td><span style="font-size:.82rem">${p.style || ''}</span></td>
+                          <td><span style="font-size:.82rem">${escH(p.style || '')}</span></td>
                           <td>
-                            <div style="font-size:.78rem;color:var(--muted)">${p.barcode}</div>
-                            <code style="font-size:.78rem">${p.sku}</code>
+                            <div style="font-size:.78rem;color:var(--muted)">${escH(p.barcode)}</div>
+                            <code style="font-size:.78rem">${escH(p.sku)}</code>
                           </td>
                           <td class="prod-price">
                             <strong>$${Number(p.cost || 0).toFixed(2)}</strong>
                             <small>&nbsp;/&nbsp;$${Number(p.dealer).toFixed(2)}&nbsp;/&nbsp;$${Number(p.srp).toFixed(2)}</small>
                           </td>
-                          <td><span style="font-size:.8rem">${p.orderUnit} of ${p.unitsPerOrder} ${p.unitLabel}</span></td>
+                          <td><span style="font-size:.8rem">${escH(p.orderUnit)} of ${p.unitsPerOrder} ${escH(p.unitLabel)}</span></td>
                           <td>
                             <select class="prod-status-select" onchange="updateProductStatus(${i}, this.value)">
                               ${['available','unavailable','hidden'].map(s =>
@@ -1431,12 +1407,12 @@
         ? '<span style="color:var(--muted);font-size:.82rem">No vendors yet — add them in the Vendors tab.</span>'
         : allVendors.map(v => `
             <label style="display:flex;align-items:center;gap:6px;font-size:.85rem;cursor:pointer;white-space:nowrap">
-              <input type="checkbox" class="v-vendor-cb" value="${v.code}"
+              <input type="checkbox" class="v-vendor-cb" value="${escH(v.code)}"
                      ${selectedCodes.length === 0 || selectedCodes.includes(v.code.toUpperCase()) ? 'checked' : ''} />
-              ${v.company}
+              ${escH(v.company)}
             </label>`).join('');
       const sel = document.getElementById('m-category');
-      sel.innerHTML = allCategories.map(c => `<option value="${c}"${c === (p.category || allCategories[0]) ? ' selected' : ''}>${c}</option>`).join('');
+      sel.innerHTML = allCategories.map(c => `<option value="${escH(c)}"${c === (p.category || allCategories[0]) ? ' selected' : ''}>${escH(c)}</option>`).join('');
       document.getElementById('m-img-upload-status').textContent = '';
       document.getElementById('productModal').showModal();
     }
@@ -1511,10 +1487,7 @@
         let saved = 0;
         for (let ci = 0; ci < chunks.length; ci++) {
           const append  = ci > 0;
-          const payload = encodeURIComponent(JSON.stringify(chunks[ci]));
-          const url     = `${WEBHOOK}?action=saveProducts&pw=${apw()}&append=${append}&payload=${payload}`;
-          const res     = await fetch(url);
-          const data    = await res.json();
+          const data    = await postAdmin('saveProducts', { append, payload: JSON.stringify(chunks[ci]) });
           if (data.status !== 'ok') throw new Error(data.message || 'Unknown error');
           saved += data.saved;
           msg.textContent = `${saved} of ${products.length} products`;
@@ -1553,12 +1526,10 @@
     async function loadOrders() {
       setOrdersStatus('loading', 'Loading orders\u2026');
       try {
-        const [ordRes, storeRes] = await Promise.all([
-          fetch(WEBHOOK + '?action=getOrders&pw=' + apw()),
-          fetch(WEBHOOK + '?action=getStoreContacts'),
+        const [ordData, storeData] = await Promise.all([
+          postAdmin('getOrders', {}),
+          postAdmin('getStoreContacts', {}),
         ]);
-        const ordData   = await ordRes.json();
-        const storeData = await storeRes.json();
         allOrders = Array.isArray(ordData) ? ordData.filter(function(o) { return o.orderId && o.lines && o.lines.length > 0; }) : [];
         const contacts = Array.isArray(storeData) ? storeData : [];
         // Enrich orders with the contact name from the Vendors/Stores sheet
@@ -1703,7 +1674,7 @@
         </div>
         <div class="om-comments">
           <label class="om-label" for="om-comments-input">Comments</label>
-          <textarea id="om-comments-input" rows="3" placeholder="No comments">${escH(order.comments || '')}</textarea>
+          <textarea id="om-comments-input" rows="3" placeholder="No comments"></textarea>
         </div>
         <table class="om-lines-table">
           <thead><tr>
@@ -1722,6 +1693,7 @@
           <span>Retail Value (SRP)</span>     <span id="om-total-srp" style="text-align:right;color:var(--green)">$${Number(order.totalRetail).toFixed(2)}</span>
         </div>
       `;
+      document.getElementById('om-comments-input').value = order.comments || '';
 
       document.getElementById('orderModal').showModal();
     }
@@ -1804,16 +1776,14 @@
         for (const [field, value] of Object.entries(fields)) {
           if (field === 'comments' || value !== editingOrder[field]) {
             const payload = JSON.stringify({ orderId: oid, field, value });
-            const res = await fetch(WEBHOOK + '?action=updateOrderStatus&pw=' + apw() + '&payload=' + encodeURIComponent(payload));
-            const data = await res.json();
+            const data = await postAdmin('updateOrderStatus', { payload });
             if (data.status !== 'ok') throw new Error(data.message);
           }
         }
         // Save line quantities if changed
         if (linesChanged) {
           const payload = JSON.stringify({ orderId: oid, lines: updatedLines });
-          const res = await fetch(WEBHOOK + '?action=updateOrderLines&pw=' + apw() + '&payload=' + encodeURIComponent(payload));
-          const data = await res.json();
+          const data = await postAdmin('updateOrderLines', { payload });
           if (data.status !== 'ok') throw new Error(data.message || 'Failed to update lines');
           editingOrder.lines = updatedLines.map(function(ul, idx) {
             return Object.assign({}, editingOrder.lines[idx], ul);
@@ -1843,9 +1813,7 @@
     async function updateStatus(orderId, field, value) {
       try {
         const payload = JSON.stringify({ orderId, field, value });
-        const url     = WEBHOOK + '?action=updateOrderStatus&pw=' + apw() + '&payload=' + encodeURIComponent(payload);
-        const res     = await fetch(url);
-        const data    = await res.json();
+        const data    = await postAdmin('updateOrderStatus', { payload });
         if (data.status !== 'ok') throw new Error(data.message);
         const order = allOrders.find(function(o) { return o.orderId === orderId; });
         if (order) order[field] = value;

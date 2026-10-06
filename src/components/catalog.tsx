@@ -328,6 +328,67 @@ export function Catalog({ code }: { code: string }) {
       .toLowerCase()
       .includes(search.toLowerCase()),
   );
+  const categories = [...new Set(shown.map((p) => p.category))];
+  // Lightbox steps through products in the order the catalog displays them.
+  const ordered = categories.flatMap((category) =>
+    shown.filter((p) => p.category === category),
+  );
+  const lightboxIndex = lightbox
+    ? ordered.findIndex((p) => p.id === lightbox.id)
+    : -1;
+  function stepLightbox(delta: number) {
+    if (!ordered.length) return;
+    setLightbox(
+      ordered[(lightboxIndex + delta + ordered.length) % ordered.length],
+    );
+  }
+  function setProductQty(id: string, value: number) {
+    setQty((current) => ({
+      ...current,
+      [id]: Math.min(100000, Math.max(0, value)),
+    }));
+  }
+  function cartControl(p: Product) {
+    if (p.status !== "available")
+      return <span className="badge">Unavailable</span>;
+    if (!(qty[p.id] > 0))
+      return (
+        <button
+          type="button"
+          className="add-to-cart"
+          aria-label={`Add ${p.name} to cart`}
+          onClick={() => setProductQty(p.id, 1)}
+        >
+          Add to Cart
+        </button>
+      );
+    return (
+      <div
+        className="cart-quantity"
+        role="group"
+        aria-label={`Quantity for ${p.name}`}
+      >
+        <button
+          type="button"
+          className="secondary"
+          aria-label={`Decrease quantity for ${p.name}`}
+          onClick={() => setProductQty(p.id, qty[p.id] - 1)}
+        >
+          −
+        </button>
+        <output aria-live="polite">{qty[p.id]}</output>
+        <button
+          type="button"
+          className="secondary"
+          aria-label={`Increase quantity for ${p.name}`}
+          disabled={qty[p.id] >= 100000}
+          onClick={() => setProductQty(p.id, qty[p.id] + 1)}
+        >
+          +
+        </button>
+      </div>
+    );
+  }
   return (
     <>
       <div className="agent-strip">
@@ -374,7 +435,7 @@ export function Catalog({ code }: { code: string }) {
                 : "Your agent’s catalog is being prepared. Please contact your vendor."}
             </div>
           )}
-          {[...new Set(shown.map((p) => p.category))].map((category) => (
+          {categories.map((category) => (
             <section className="category card" key={category}>
               <h2>
                 {category}
@@ -440,70 +501,7 @@ export function Catalog({ code }: { code: string }) {
                               % margin
                             </small>
                           </td>
-                          <td>
-                            {p.status === "available" ? (
-                              qty[p.id] > 0 ? (
-                                <div
-                                  className="cart-quantity"
-                                  role="group"
-                                  aria-label={`Quantity for ${p.name}`}
-                                >
-                                  <button
-                                    type="button"
-                                    className="secondary"
-                                    aria-label={`Decrease quantity for ${p.name}`}
-                                    onClick={() =>
-                                      setQty((current) => ({
-                                        ...current,
-                                        [p.id]: Math.max(
-                                          0,
-                                          (current[p.id] || 0) - 1,
-                                        ),
-                                      }))
-                                    }
-                                  >
-                                    −
-                                  </button>
-                                  <output aria-live="polite">
-                                    {qty[p.id]}
-                                  </output>
-                                  <button
-                                    type="button"
-                                    className="secondary"
-                                    aria-label={`Increase quantity for ${p.name}`}
-                                    disabled={qty[p.id] >= 100000}
-                                    onClick={() =>
-                                      setQty((current) => ({
-                                        ...current,
-                                        [p.id]: Math.min(
-                                          100000,
-                                          (current[p.id] || 0) + 1,
-                                        ),
-                                      }))
-                                    }
-                                  >
-                                    +
-                                  </button>
-                                </div>
-                              ) : (
-                                <button
-                                  type="button"
-                                  className="add-to-cart"
-                                  aria-label={`Add ${p.name} to cart`}
-                                  onClick={() =>
-                                    setQty((current) => ({
-                                      ...current,
-                                      [p.id]: 1,
-                                    }))
-                                  }
-                                >
-                                  Add to Cart
-                                </button>
-                              )
-                            ) : (
-                              <span className="badge">Unavailable</span>
-                            )}
-                          </td>
+                          <td>{cartControl(p)}</td>
                         </tr>
                       ))}
                   </tbody>
@@ -631,12 +629,62 @@ export function Catalog({ code }: { code: string }) {
       )}
       {lightbox && (
         <Modal title={lightbox.name} onClose={() => setLightbox(null)}>
-          <img
-            className="lightbox-image"
-            src={lightbox.image || "/images/image1.png"}
-            alt={lightbox.name}
-          />
-          <p>{lightbox.description}</p>
+          <div
+            className="lightbox"
+            onKeyDown={(e) => {
+              if (e.key === "ArrowLeft") stepLightbox(-1);
+              if (e.key === "ArrowRight") stepLightbox(1);
+            }}
+          >
+            <div className="lightbox-stage">
+              <button
+                type="button"
+                className="lightbox-nav"
+                aria-label="Previous product"
+                disabled={ordered.length < 2}
+                onClick={() => stepLightbox(-1)}
+              >
+                ‹
+              </button>
+              <img
+                className="lightbox-image"
+                src={lightbox.image || "/images/image1.png"}
+                alt={lightbox.name}
+              />
+              <button
+                type="button"
+                className="lightbox-nav"
+                aria-label="Next product"
+                disabled={ordered.length < 2}
+                onClick={() => stepLightbox(1)}
+              >
+                ›
+              </button>
+            </div>
+            <div className="lightbox-details">
+              <div>
+                <small className="muted">
+                  {lightbox.sku}
+                  {lightbox.style && ` · ${lightbox.style}`} · 1{" "}
+                  {lightbox.orderUnit} = {lightbox.unitsPerOrder}{" "}
+                  {lightbox.unitLabel}
+                </small>
+                <p>
+                  <strong>{money(lightbox.cost * 1.11)}</strong>{" "}
+                  <span className="muted">
+                    dealer · SRP {money(lightbox.srp)}
+                  </span>
+                </p>
+                {lightbox.description && <p>{lightbox.description}</p>}
+              </div>
+              {cartControl(lightbox)}
+            </div>
+            {lightboxIndex >= 0 && (
+              <p className="lightbox-count muted">
+                {lightboxIndex + 1} of {ordered.length}
+              </p>
+            )}
+          </div>
         </Modal>
       )}
     </>

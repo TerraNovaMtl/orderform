@@ -9,7 +9,7 @@ const suffix = randomUUID().slice(0, 8).toUpperCase(),
   code = `BROWSER-${suffix}`,
   company = `BROWSER-${suffix}`,
   actor = `browser-${suffix}`;
-const base = process.env.TEST_BASE_URL || "http://127.0.0.1:3000";
+const base = process.env.TEST_BASE_URL || "http://127.0.0.1:3020";
 let productId = "",
   browser;
 try {

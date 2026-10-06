@@ -22,7 +22,7 @@ The database initially has no business data. An approved administrator can creat
 ## Google admin sign-in
 
 1. Create a **Web application** OAuth client in Google Cloud and configure its consent screen. If Google keeps the app in testing mode, add approved admins as Google test users too.
-2. Add the exact redirect URI used locally: `http://localhost:3000/api/auth/callback/google`. If using `127.0.0.1`, register `http://127.0.0.1:3000/api/auth/callback/google` as well. Register the exact HTTPS production callback after the domain is confirmed.
+2. Add the exact redirect URI used locally: `http://localhost:3020/api/auth/callback/google`. If using `127.0.0.1`, register `http://127.0.0.1:3020/api/auth/callback/google` as well. Register the exact HTTPS production callback after the domain is confirmed.
 3. Set `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET` from Google.
 4. Generate `AUTH_SECRET` with `node scripts/configure-local-auth.mjs`, which writes a random secret only if missing and never prints it. A secret has already been generated in this local workspace.
 5. Set `ADMIN_EMAILS` to comma-separated approved Google account emails. The initial admin is `terranova.mtl.ai@gmail.com`. Adding an email here does not bypass Google's consent/test-user requirements.
@@ -43,11 +43,11 @@ Browser tests use short-lived signed test cookies to verify authorization and ad
 
 ## Email delivery
 
-Configure `RESEND_API_KEY`, a verified `EMAIL_FROM`, `ORDER_EMAIL`, and a random `CRON_SECRET`. The existing business recipient defaults to `terranova.mtl.ai@gmail.com` when queuing an order, but delivery remains disabled until the email settings are complete.
+Mail is sent through Gmail SMTP. Configure `GMAIL_USER` (the sending Gmail account), `GMAIL_APP_PASSWORD` (a Google app password for that account; requires 2-Step Verification), `ORDER_EMAIL`, and a random `CRON_SECRET`. The existing business recipient defaults to `terranova.mtl.ai@gmail.com` when queuing an order, but delivery remains disabled until the email settings are complete.
 
-Orders are accepted even if email is unavailable. The database outbox records one notification per order/recipient, snapshots the provider request on first send, and retries with a stable provider idempotency key. Failed and pending counts appear in the admin workspace. Orders marked sent/invoiced/paid are business workflow flags, independent of notification delivery.
+Orders are accepted even if email is unavailable. The database outbox records one notification per order/recipient, snapshots the message on first send, and retries with a stable Message-ID so a duplicate after an ambiguous failure is recognisable. Failed and pending counts appear in the admin workspace. Orders marked sent/invoiced/paid are business workflow flags, independent of notification delivery.
 
-New orders trigger the worker after the response. Also schedule authenticated `GET /api/jobs/email` (bearer `CRON_SECRET`) every five minutes for recovery; use Vercel Cron or another scheduler appropriate to the account plan. No scheduler or email provider has been provisioned yet. Configure schedule and secrets before launch. Ambiguous retries older than 23 hours require review instead of automatic replay beyond the provider's deduplication window.
+New orders trigger the worker after the response. Also schedule authenticated `GET /api/jobs/email` (bearer `CRON_SECRET`) every five minutes for recovery; use Vercel Cron or another scheduler appropriate to the account plan. Gmail delivery is verified locally; the scheduler and Production Gmail/cron secrets still need configuring in Vercel before launch. Ambiguous retries older than 23 hours require review instead of automatic replay. Gmail limits sending to roughly 500 messages per day for a consumer account.
 
 Email is suppressed outside `VERCEL_ENV=production` unless `EMAIL_TEST_TO` is explicitly set. In that case all mail goes to that controlled test inbox. Use a separate database for previews before enabling production so a preview worker cannot claim production notification jobs.
 

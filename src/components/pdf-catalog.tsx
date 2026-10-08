@@ -51,13 +51,28 @@ export function PdfCatalog({
   }
   return (
     <div className="pdf-catalog">
-      <p className="muted">
-        Click a product or its colour on the page to add an ordering pack or
-        case. Click again to add another. Use Previous and Next to turn pages.
-      </p>
-      <p role="status" className="pdf-cart-feedback">
-        {message || "Select a product to begin."}
-      </p>
+      <aside className="catalog-help" aria-label="How to order">
+        <h3>Click the catalogue to order</h3>
+        <ol>
+          <li>
+            <strong>Choose an item or colour.</strong> Click its picture to add
+            one pack or case to your cart.
+          </li>
+          <li>
+            <strong>Need more?</strong> Click it again to add another pack or
+            case.
+          </li>
+          <li>
+            <strong>Browse the catalogue.</strong> Use the left and right arrows
+            to turn pages.
+          </li>
+        </ol>
+      </aside>
+      {message && (
+        <p role="status" className="pdf-cart-feedback">
+          {message}
+        </p>
+      )}
       {(currentPage ? [currentPage] : []).map((page) => {
         const regions = page.regions.flatMap((region) => {
           const product = byKey.get(region.key);

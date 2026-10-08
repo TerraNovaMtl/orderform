@@ -368,7 +368,7 @@ export function Catalog({ code }: { code: string }) {
       [id]: Math.min(100000, Math.max(0, value)),
     }));
   }
-  function cartControl(p: Product) {
+  function cartControl(p: Product, disabled = false) {
     if (p.status !== "available")
       return <span className="badge">Unavailable</span>;
     if (!(qty[p.id] > 0))
@@ -376,6 +376,7 @@ export function Catalog({ code }: { code: string }) {
         <button
           type="button"
           className="add-to-cart"
+          disabled={disabled}
           aria-label={`Add ${p.name} to cart`}
           onClick={() => setProductQty(p.id, p.minimumOrder ?? 1)}
         >
@@ -392,6 +393,7 @@ export function Catalog({ code }: { code: string }) {
           type="button"
           className="secondary"
           aria-label={`Decrease quantity for ${p.name}`}
+          disabled={disabled}
           onClick={() =>
             setProductQty(
               p.id,
@@ -406,7 +408,7 @@ export function Catalog({ code }: { code: string }) {
           type="button"
           className="secondary"
           aria-label={`Increase quantity for ${p.name}`}
-          disabled={qty[p.id] >= 100000}
+          disabled={disabled || qty[p.id] >= 100000}
           onClick={() => setProductQty(p.id, qty[p.id] + 1)}
         >
           +
@@ -564,6 +566,52 @@ export function Catalog({ code }: { code: string }) {
             <br />
             Store {store.storeCode}
           </p>
+          <div className="receipt-total">
+            <span>
+              Dealer total<small>{units} individual units</small>
+            </span>
+            <strong>{money(total)}</strong>
+          </div>
+          <label>
+            PO number (optional)
+            <input
+              maxLength={200}
+              value={customerPo}
+              onChange={(e) => setCustomerPo(e.target.value)}
+            />
+          </label>
+          <label>
+            Phone (optional)
+            <input
+              type="tel"
+              maxLength={80}
+              value={contactPhone}
+              onChange={(e) => setContactPhone(e.target.value)}
+            />
+          </label>
+          <label>
+            Order notes
+            <textarea
+              rows={3}
+              maxLength={4000}
+              value={comments}
+              onChange={(e) => setComments(e.target.value)}
+              placeholder="Anything we should know?"
+            />
+          </label>
+          {error && (
+            <p className="error" role="alert">
+              {error}
+            </p>
+          )}
+          <button
+            className="full"
+            disabled={!lines.length}
+            onClick={() => setReview(true)}
+          >
+            Review order →
+          </button>
+          <h3 className="cart-items-heading">Selected items</h3>
           {lines.length ? (
             lines.map((l) => (
               <div className="summary-line" key={l.p.id}>
@@ -610,51 +658,6 @@ export function Catalog({ code }: { code: string }) {
           ) : (
             <p className="empty">Choose products to start your order.</p>
           )}
-          <div className="receipt-total">
-            <span>
-              Dealer total<small>{units} individual units</small>
-            </span>
-            <strong>{money(total)}</strong>
-          </div>
-          <label>
-            PO number (optional)
-            <input
-              maxLength={200}
-              value={customerPo}
-              onChange={(e) => setCustomerPo(e.target.value)}
-            />
-          </label>
-          <label>
-            Phone (optional)
-            <input
-              type="tel"
-              maxLength={80}
-              value={contactPhone}
-              onChange={(e) => setContactPhone(e.target.value)}
-            />
-          </label>
-          <label>
-            Order notes
-            <textarea
-              rows={3}
-              maxLength={4000}
-              value={comments}
-              onChange={(e) => setComments(e.target.value)}
-              placeholder="Anything we should know?"
-            />
-          </label>
-          {error && (
-            <p className="error" role="alert">
-              {error}
-            </p>
-          )}
-          <button
-            className="full"
-            disabled={!lines.length}
-            onClick={() => setReview(true)}
-          >
-            Review order →
-          </button>
         </aside>
       </main>
       {review && (
@@ -669,18 +672,65 @@ export function Catalog({ code }: { code: string }) {
             <br />
             {store.firstName} {store.lastName} · {store.email}
           </p>
-          {lines.map((l) => (
-            <div className="summary-line" key={l.p.id}>
-              <span>
-                {l.p.name}
-                <small>
-                  {l.qty} {l.p.orderUnit}
-                </small>
-              </span>
-              <strong>{money(l.lineDealer)}</strong>
-            </div>
-          ))}
-          <div className="receipt-total">
+          <table className="review-table">
+            <thead>
+              <tr>
+                <th scope="col">Product</th>
+                <th scope="col">Quantity</th>
+                <th scope="col">Delete</th>
+                <th scope="col" className="review-price">
+                  Line total
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {lines.map((l) => (
+                <tr key={l.p.id}>
+                  <td>
+                    {l.p.name}
+                    <small>
+                      {l.qty} {l.p.orderUnit} · {l.qty * l.p.unitsPerOrder}{" "}
+                      {l.p.unitLabel}
+                    </small>
+                  </td>
+                  <td>{cartControl(l.p, busy)}</td>
+                  <td className="review-delete">
+                    <button
+                      type="button"
+                      className="text-button danger"
+                      disabled={busy}
+                      aria-label={`Remove ${l.p.name} from review`}
+                      title="Remove item"
+                      onClick={() => setProductQty(l.p.id, 0)}
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
+                      </svg>
+                    </button>
+                  </td>
+                  <td className="review-price">
+                    <strong>{money(l.lineDealer)}</strong>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {!lines.length && (
+            <p className="empty" role="status">
+              Your cart is empty. Close this review to add products.
+            </p>
+          )}
+          <div className="receipt-total" aria-live="polite">
             Total <strong>{money(total)}</strong>
           </div>
           {customerPo && <p>PO: {customerPo}</p>}
@@ -692,7 +742,7 @@ export function Catalog({ code }: { code: string }) {
             </p>
           )}
           <p className="muted">Your order will be recorded when you confirm.</p>
-          <button disabled={busy} onClick={submit}>
+          <button disabled={busy || !lines.length} onClick={submit}>
             {busy ? "Recording order…" : "Confirm and submit order"}
           </button>
         </Modal>

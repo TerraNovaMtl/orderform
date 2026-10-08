@@ -1064,3 +1064,284 @@ dialog::backdrop {
 .pdf-reader-stage {
   background: #f4f3ef;
 }
+
+.review-table {
+  width: 100%;
+  table-layout: fixed;
+}
+.review-table th {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+.review-table th,
+.review-table td {
+  padding: 12px 0;
+  vertical-align: middle;
+}
+.review-table th:first-child {
+  width: auto;
+}
+.review-table th:nth-child(2) {
+  width: 104px;
+}
+.review-table th:nth-child(3) {
+  width: 48px;
+  text-align: center;
+}
+.review-table th:last-child {
+  width: 96px;
+}
+.review-table .review-price {
+  text-align: right;
+}
+.review-table small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+}
+.review-table .cart-quantity {
+  gap: 6px;
+  margin: 0;
+}
+.review-table .cart-quantity button {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  padding: 0;
+  font-size: 15px;
+}
+.review-table .cart-quantity output {
+  min-width: 18px;
+  text-align: center;
+}
+.review-table .review-delete {
+  text-align: center;
+}
+.review-table .review-delete button {
+  width: 28px;
+  height: 28px;
+  padding: 4px;
+}
+@media (max-width: 600px) {
+  .review-table th:nth-child(2) {
+    width: 88px;
+  }
+  .review-table th:nth-child(3) {
+    width: 32px;
+  }
+  .review-table th:last-child {
+    width: 76px;
+  }
+  .review-table {
+    font-size: 12px;
+  }
+}
+
+.company-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 26px 0 22px;
+}
+.company-toolbar h2 {
+  font-size: 20px;
+  margin: 0 0 6px;
+}
+.company-toolbar p {
+  font-size: 13px;
+  margin: 0;
+}
+.company-toolbar .actions {
+  flex-wrap: nowrap;
+}
+.company-toolbar button {
+  white-space: nowrap;
+}
+.company-card {
+  box-shadow: 0 3px 14px rgba(32, 60, 76, 0.035);
+}
+.company-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 22px;
+  border-bottom: 1px solid var(--line);
+}
+.company-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.company-monogram {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: #edf3f1;
+  color: #356353;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.company-card .company-header h2 {
+  border: 0;
+  padding: 0;
+  font-size: 16px;
+}
+.company-title p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.company-delete,
+.agent-delete {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 6px;
+  border-radius: 6px;
+}
+.company-delete:hover,
+.agent-delete:hover {
+  background: #fff0ed;
+}
+.agents-table {
+  table-layout: fixed;
+  min-width: 850px;
+}
+.agents-table th:nth-child(1) {
+  width: 19%;
+}
+.agents-table th:nth-child(2) {
+  width: 25%;
+}
+.agents-table th:nth-child(3) {
+  width: 17%;
+}
+.agents-table th:nth-child(4) {
+  width: 12%;
+}
+.agents-table th:last-child {
+  width: 27%;
+  text-align: right;
+}
+.agents-table th {
+  background: #f7f9f8;
+  padding: 12px 22px;
+}
+.agents-table td {
+  padding: 17px 22px;
+}
+.agents-table tbody tr:hover {
+  background: #fbfcfb;
+}
+.agent-name {
+  font-weight: 600;
+}
+.agent-email {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.agent-code {
+  display: inline-block;
+  padding: 5px 8px;
+  border: 1px solid #e7ece9;
+  border-radius: 5px;
+  background: #f7f9f8;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+.agent-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.agent-status > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #9ba6a1;
+}
+.agent-status.is-active {
+  color: #356353;
+}
+.agent-status.is-active > span {
+  background: #4a8c6f;
+}
+.agent-actions {
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: 7px;
+}
+.agent-actions button.compact,
+.agent-open {
+  padding: 6px 9px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.agent-open {
+  text-decoration: none;
+  border-radius: 6px;
+}
+.agent-open:hover {
+  background: #edf3f1;
+}
+@media (max-width: 700px) {
+  .company-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .company-header {
+    padding: 16px;
+  }
+  .company-toolbar .actions {
+    width: 100%;
+  }
+  .company-toolbar .actions button {
+    flex: 1;
+  }
+}
+
+.catalog-help {
+  margin: 0 0 18px;
+  padding: 20px 24px;
+  border: 1px solid #e6c9b7;
+  border-left: 4px solid var(--orange);
+  border-radius: 9px;
+  background: #fff7ef;
+  color: var(--navy);
+}
+.catalog-help h3 {
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+.catalog-help ol {
+  margin: 0;
+  padding-left: 22px;
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.catalog-help li {
+  padding-left: 4px;
+}
+.catalog-help li::marker {
+  color: var(--orange);
+  font-weight: 700;
+}
+@media (max-width: 700px) {
+  .catalog-help {
+    padding: 16px 18px;
+  }
+}

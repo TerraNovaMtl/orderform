@@ -80,6 +80,43 @@ export async function listAgents(): Promise<Agent[]> {
     await db()`select a.*, c.name as company from terranova.agents a join terranova.companies c on c.id=a.company_id order by c.name,a.code`
   ).map(mapAgent);
 }
+export async function deleteCompany(id: string, actor: string) {
+  await db().begin(async (tx) => {
+    const [company] =
+      await tx`select * from terranova.companies where id=${id} for update`;
+    if (!company) throw notFound();
+    const [dependencies] = await tx`select
+      (select count(*)::int from terranova.agents where company_id=${id}) as agents,
+      (select count(*)::int from terranova.products where company_id=${id} and archived=false) as products`;
+    if (dependencies.agents || dependencies.products)
+      throw new AppError(
+        `Remove or reassign this company's ${dependencies.agents} agent(s) and ${dependencies.products} product(s) before deleting it.`,
+        409,
+      );
+    await tx`update terranova.products set company_id=null,version=version+1 where company_id=${id} and archived=true`;
+    await tx`delete from terranova.companies where id=${id}`;
+    await audit(tx, actor, "company.deleted", id, { name: company.name });
+  });
+}
+export async function deleteAgent(id: string, actor: string) {
+  await db().begin(async (tx) => {
+    const [agent] =
+      await tx`select * from terranova.agents where id=${id} for update`;
+    if (!agent) throw notFound();
+    // Orders retain their company, agent and store snapshots after these links are cleared.
+    await tx`update terranova.orders set agent_id=null where agent_id=${id}`;
+    await tx`update terranova.orders set store_id=null where store_id in (select id from terranova.stores where agent_id=${id})`;
+    const stores =
+      await tx`delete from terranova.stores where agent_id=${id} returning id`;
+    await tx`delete from terranova.product_agents where agent_id=${id}`;
+    // Keep restricted=true on products, even if their last assigned agent is removed.
+    await tx`delete from terranova.agents where id=${id}`;
+    await audit(tx, actor, "agent.deleted", id, {
+      code: agent.code,
+      storesDeleted: stores.length,
+    });
+  });
+}
 export async function saveAgent(input: unknown, actor: string) {
   const a = agentSchema.parse(input);
   return db().begin(async (tx) => {
@@ -182,18 +219,15 @@ export async function listProducts(vendor?: string): Promise<Product[]> {
     a && rows.length
       ? await sql`select product_id,product_key from terranova.catalog_imports where catalog_key='fma-2026' and product_id in ${sql(rows.map((r) => r.id))}`
       : [];
-  return rows
-    .map(mapProduct)
-    .map((p) =>
-      a
-        ? {
-            ...p,
-            agentCodes: [],
-            catalogKey: mappings.find((m) => m.product_id === p.id)
-              ?.product_key,
-          }
-        : p,
-    );
+  return rows.map(mapProduct).map((p) =>
+    a
+      ? {
+          ...p,
+          agentCodes: [],
+          catalogKey: mappings.find((m) => m.product_id === p.id)?.product_key,
+        }
+      : p,
+  );
 }
 export async function saveProduct(input: unknown, actor: string) {
   const p = productSchema.parse(input);
@@ -399,6 +433,31 @@ export async function submitOrder(input: unknown): Promise<Order> {
       storeCode: s.code,
     });
     return getOrder(o.id, tx);
+  });
+}
+export async function deleteOrder(id: string, version: number, actor: string) {
+  await db().begin(async (tx) => {
+    const [order] =
+      await tx`select * from terranova.orders where id=${id} for update`;
+    if (!order) throw notFound();
+    if (order.version !== version)
+      throw new AppError("This order changed. Reload before deleting.", 409);
+    const deliveries =
+      await tx`select state from terranova.email_outbox where order_id=${id} for update`;
+    if (deliveries.some((job) => job.state === "sending"))
+      throw new AppError(
+        "An email is being sent for this order. Try deleting it again after delivery finishes.",
+        409,
+      );
+    await audit(tx, actor, "order.deleted", id, {
+      reference: order.reference,
+      company: order.company_name,
+      storeCode: order.store_code,
+      totalDealer: Number(order.total_dealer),
+    });
+    await tx`delete from terranova.email_outbox where order_id=${id}`;
+    await tx`delete from terranova.order_lines where order_id=${id}`;
+    await tx`delete from terranova.orders where id=${id}`;
   });
 }
 export async function editOrder(input: unknown, actor: string) {

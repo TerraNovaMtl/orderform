@@ -54,6 +54,12 @@ export function Admin() {
     [agent, setAgent] = useState<AgentInput | null>(null),
     [store, setStore] = useState<StoreInput | null>(null),
     [order, setOrder] = useState<Order | null>(null),
+    [deleteTarget, setDeleteTarget] = useState<Order | null>(null),
+    [deleteAccount, setDeleteAccount] = useState<{
+      kind: "agent" | "company";
+      id: string;
+      name: string;
+    } | null>(null),
     [receipt, setReceipt] = useState<Order | null>(null);
   async function refresh() {
     const d = await request<Data>("/api/admin");
@@ -146,7 +152,14 @@ export function Admin() {
           Refresh
         </button>
       </div>
-      {error && !product && !agent && !store && !order && modalError}
+      {error &&
+        !product &&
+        !agent &&
+        !store &&
+        !order &&
+        !deleteTarget &&
+        !deleteAccount &&
+        modalError}
       {notice && (
         <p role="status" className="success">
           {notice}
@@ -314,58 +327,104 @@ export function Admin() {
           )}
           {tab === "agents" && (
             <>
-              <div className="list-heading">
-                <p className="muted">
-                  Each access code belongs to one agent within a company.
-                </p>
-                <button
-                  disabled={busy}
-                  onClick={() => {
-                    setError("");
-                    setCompanyName("");
-                  }}
-                >
-                  + Add company
-                </button>
-                <button
-                  onClick={() => {
-                    setError("");
-                    setAgent({
-                      company: "",
-                      code: crypto
-                        .randomUUID()
-                        .replaceAll("-", "")
-                        .slice(0, 16)
-                        .toUpperCase(),
-                      firstName: "",
-                      lastName: "",
-                      email: "",
-                      active: true,
-                    });
-                  }}
-                >
-                  + Add agent
-                </button>
+              <div className="company-toolbar">
+                <div>
+                  <h2>Companies & agents</h2>
+                  <p className="muted">
+                    Each access code belongs to one agent within a company.
+                  </p>
+                </div>
+                <div className="actions">
+                  <button
+                    className="secondary"
+                    disabled={busy}
+                    onClick={() => {
+                      setError("");
+                      setCompanyName("");
+                    }}
+                  >
+                    + Add company
+                  </button>
+                  <button
+                    onClick={() => {
+                      setError("");
+                      setAgent({
+                        company: "",
+                        code: crypto
+                          .randomUUID()
+                          .replaceAll("-", "")
+                          .slice(0, 16)
+                          .toUpperCase(),
+                        firstName: "",
+                        lastName: "",
+                        email: "",
+                        active: true,
+                      });
+                    }}
+                  >
+                    + Add agent
+                  </button>
+                </div>
               </div>
               {data.companies
                 .map((c) => c.name)
                 .map((company) => (
-                  <section key={company} className="card category">
-                    <h2>{company}</h2>
+                  <section key={company} className="card category company-card">
+                    <div className="company-header">
+                      <div className="company-title">
+                        <span className="company-monogram" aria-hidden="true">
+                          {company
+                            .split(/\s+/)
+                            .map((word) => word[0])
+                            .slice(0, 2)
+                            .join("")}
+                        </span>
+                        <div>
+                          <h2>{company}</h2>
+                          <p>
+                            {
+                              data.agents.filter((a) => a.company === company)
+                                .length
+                            }{" "}
+                            {data.agents.filter((a) => a.company === company)
+                              .length === 1
+                              ? "agent"
+                              : "agents"}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        className="text-button danger company-delete"
+                        disabled={busy}
+                        aria-label={`Delete company ${company}`}
+                        title="Delete company"
+                        onClick={() => {
+                          setError("");
+                          setDeleteAccount({
+                            kind: "company",
+                            id: data.companies.find((c) => c.name === company)!
+                              .id,
+                            name: company,
+                          });
+                        }}
+                      >
+                        <TrashIcon />
+                      </button>
+                    </div>
                     {!data.agents.some((a) => a.company === company) && (
                       <p className="empty">
                         No agents yet. Use Add agent and choose this company.
                       </p>
                     )}
                     <div className="table-scroll">
-                      <table>
+                      <table className="agents-table">
                         <thead>
                           <tr>
                             <th>Agent</th>
                             <th>Email</th>
                             <th>Access code</th>
                             <th>Status</th>
-                            <th />
+                            <th>Actions</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -383,16 +442,25 @@ export function Admin() {
                             )
                             .map((a) => (
                               <tr key={a.id}>
-                                <td>
+                                <td className="agent-name">
                                   {a.firstName} {a.lastName}
                                 </td>
-                                <td>{a.email}</td>
-                                <td>
-                                  <code>{a.code}</code>
+                                <td className="agent-email">
+                                  {a.email || "—"}
                                 </td>
-                                <td>{a.active ? "Active" : "Disabled"}</td>
                                 <td>
-                                  <div className="actions">
+                                  <code className="agent-code">{a.code}</code>
+                                </td>
+                                <td>
+                                  <span
+                                    className={`agent-status ${a.active ? "is-active" : ""}`}
+                                  >
+                                    <span aria-hidden="true" />
+                                    {a.active ? "Active" : "Disabled"}
+                                  </span>
+                                </td>
+                                <td>
+                                  <div className="actions agent-actions">
                                     <button
                                       className="secondary compact"
                                       onClick={() => {
@@ -418,12 +486,29 @@ export function Admin() {
                                       Copy link
                                     </button>
                                     <a
+                                      className="agent-open"
                                       target="_blank"
                                       rel="noreferrer"
                                       href={`/?vendor=${encodeURIComponent(a.code)}`}
                                     >
                                       Open ↗
                                     </a>
+                                    <button
+                                      className="text-button danger agent-delete"
+                                      disabled={busy}
+                                      aria-label={`Delete agent ${a.code}`}
+                                      title="Delete agent"
+                                      onClick={() => {
+                                        setError("");
+                                        setDeleteAccount({
+                                          kind: "agent",
+                                          id: a.id,
+                                          name: `${a.firstName} ${a.lastName} (${a.code})`,
+                                        });
+                                      }}
+                                    >
+                                      <TrashIcon />
+                                    </button>
                                   </div>
                                 </td>
                               </tr>
@@ -666,6 +751,28 @@ export function Admin() {
                                   >
                                     CSV
                                   </button>
+                                  <button
+                                    className="text-button danger"
+                                    aria-label={`Delete order ${o.reference}`}
+                                    title="Delete order"
+                                    disabled={busy}
+                                    onClick={() => {
+                                      setError("");
+                                      setDeleteTarget(o);
+                                    }}
+                                  >
+                                    <svg
+                                      width="16"
+                                      height="16"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="1.8"
+                                      aria-hidden="true"
+                                    >
+                                      <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" />
+                                    </svg>
+                                  </button>
                                 </div>
                               </td>
                             </tr>
@@ -684,6 +791,100 @@ export function Admin() {
             </>
           )}
         </>
+      )}
+      {deleteAccount && (
+        <Modal
+          title={`Delete ${deleteAccount.kind}?`}
+          onClose={() => {
+            if (!busy) setDeleteAccount(null);
+          }}
+        >
+          <p>
+            <strong>{deleteAccount.name}</strong>
+          </p>
+          <p>
+            {deleteAccount.kind === "agent"
+              ? "This permanently deletes the agent and its stores. Its access link will stop working. Past orders and products are preserved."
+              : "This permanently deletes the company. Remove or reassign its agents and products first. Past orders are preserved."}
+          </p>
+          {modalError}
+          <div className="actions">
+            <button
+              className="secondary"
+              disabled={busy}
+              onClick={() => setDeleteAccount(null)}
+            >
+              Keep {deleteAccount.kind}
+            </button>
+            <button
+              className="danger"
+              disabled={busy}
+              onClick={async () => {
+                if (
+                  await mutate({
+                    action:
+                      deleteAccount.kind === "agent"
+                        ? "deleteAgent"
+                        : "deleteCompany",
+                    id: deleteAccount.id,
+                  })
+                ) {
+                  setNotice(
+                    `${deleteAccount.kind === "agent" ? "Agent" : "Company"} deleted.`,
+                  );
+                  setDeleteAccount(null);
+                }
+              }}
+            >
+              {busy ? "Deleting…" : `Delete ${deleteAccount.kind}`}
+            </button>
+          </div>
+        </Modal>
+      )}
+      {deleteTarget && (
+        <Modal
+          title={`Delete ${deleteTarget.reference}?`}
+          onClose={() => {
+            if (!busy) setDeleteTarget(null);
+          }}
+        >
+          <p>
+            {deleteTarget.company} · Store {deleteTarget.storeCode} ·{" "}
+            {money(deleteTarget.totalDealer)}
+          </p>
+          <p>
+            This permanently deletes the order, its items and queued emails.
+            Emails already sent cannot be recalled. This cannot be undone.
+          </p>
+          {modalError}
+          <div className="actions">
+            <button
+              className="secondary"
+              disabled={busy}
+              onClick={() => setDeleteTarget(null)}
+            >
+              Keep order
+            </button>
+            <button
+              className="danger"
+              disabled={busy}
+              onClick={async () => {
+                if (
+                  await mutate({
+                    action: "deleteOrder",
+                    id: deleteTarget.id,
+                    version: deleteTarget.version,
+                  })
+                ) {
+                  setDeleteTarget(null);
+                  setNotice("Order deleted.");
+                }
+              }}
+            >
+              {busy ? "Deleting…" : "Delete order"}
+            </button>
+          </div>
+        </Modal>
       )}
       {product && (
         <Modal
@@ -1309,5 +1510,20 @@ export function Admin() {
         </Modal>
       )}
     </main>
+  );
+}
+function TrashIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      aria-hidden="true"
+    >
+      <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" />
+    </svg>
   );
 }

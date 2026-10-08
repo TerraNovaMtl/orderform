@@ -5,7 +5,7 @@ import openpyxl,pdfplumber
 ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/'migration-data/fma-2026'
 OUT.mkdir(parents=True,exist_ok=True)
-PDF=ROOT/'data/Terra_Nova_FMA_Products_ 2026.pdf'
+PDF=ROOT/'data/Terra_Nova_FMA_Products_2026.pdf'
 XLS=ROOT/'data/Terra_Nova_FMA_Products_Order_Form.xlsx'
 w=openpyxl.load_workbook(XLS,data_only=True)
 s=w.active
@@ -20,6 +20,7 @@ with pdfplumber.open(PDF) as pdf:
   slide,category,name,style,sku,upc,dealer,retail,margin,pack,*_=vals
   page=int(slide)+1
   name=name.strip();style=style.strip();sku=str(sku);upc=str(upc or '')
+  if r==10:sku='6872709'
   if r==16:upc='809565048508'
   if r==19:sku='6462760'
   if r==20:sku='6462759'

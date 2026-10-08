@@ -175,4 +175,4 @@ python3 scripts/prepare-fma-pages.py
 
 Commit `public/images/fma-pages/` and `src/lib/fma-pages.json` with the application. This presentation change requires no new database migration or product re-import.
 
-Northern Trek sweaters on PDF page 2 have ten separately orderable style packs (7271MNT, 7273MNT, 7270MNT, 7266MNT, 7267MNT, 7272MNT, 7268MNT, 7274MNT, 7269MNT, 7264MNT). Each contains 36 assorted items within that style, uses CT SKU 6872209, and totals $719.28 at the published $19.98 per unit. The original row-10 product now represents 7271MNT; nine new stable style keys identify the other packs. Historical order snapshots are retained.
+Northern Trek sweaters on PDF page 2 have ten separately orderable style packs (7271MNT, 7273MNT, 7270MNT, 7266MNT, 7267MNT, 7272MNT, 7268MNT, 7274MNT, 7269MNT, 7264MNT). Each contains 36 assorted items within that style, uses CT SKU 6872709, and totals $719.28 at the published $19.98 per unit. The original row-10 product now represents 7271MNT; nine new stable style keys identify the other packs. Historical order snapshots are retained.

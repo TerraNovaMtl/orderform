@@ -68,7 +68,7 @@ try {
   for (const sweater of sweaters) {
     assert.equal(sweater.units_per_order, 36);
     assert.equal(sweater.order_unit, "pack");
-    assert.equal(sweater.sku, "6872209");
+    assert.equal(sweater.sku, "6872709");
     assert.equal(
       productAmounts(
         {

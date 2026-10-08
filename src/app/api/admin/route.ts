@@ -12,6 +12,9 @@ import {
   saveStore,
   deleteProduct,
   deleteStore,
+  deleteOrder,
+  deleteAgent,
+  deleteCompany,
   editOrder,
   AppError,
 } from "@/lib/repository";
@@ -43,6 +46,12 @@ export async function POST(req: Request) {
     const body = await readJson(req);
     let result;
     switch (body.action) {
+      case "deleteCompany":
+        result = await deleteCompany(z.uuid().parse(body.id), actor);
+        break;
+      case "deleteAgent":
+        result = await deleteAgent(z.uuid().parse(body.id), actor);
+        break;
       case "saveCompany":
         result = await saveCompany(body.data, actor);
         break;
@@ -63,6 +72,13 @@ export async function POST(req: Request) {
         break;
       case "editOrder":
         result = await editOrder(body.data, actor);
+        break;
+      case "deleteOrder":
+        result = await deleteOrder(
+          z.uuid().parse(body.id),
+          z.number().int().positive().parse(body.version),
+          actor,
+        );
         break;
       case "uploadImage":
         result = await uploadImage(body.contentBase64, actor);

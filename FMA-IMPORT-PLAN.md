@@ -95,7 +95,7 @@ Physical PDF page = Excel `Slide` + 1 for these sources. Use physical page numbe
 | PDF page | Excel row(s) | Product boundary and required review |
 | --- | --- | --- |
 | 1 | none | Cover only; no product record. |
-| 2 | 10 | Northern Trek sweaters, CT 6872209. User confirmed ten separately orderable manufacturer styles, each a pack of 36 assorted items: 7271MNT, 7273MNT, 7270MNT, 7266MNT, 7267MNT, 7272MNT, 7268MNT, 7274MNT, 7269MNT, 7264MNT. Map each group independently and retain its style number in the product name and order snapshots. |
+| 2 | 10 | Northern Trek sweaters, CT 6872709. User confirmed ten separately orderable manufacturer styles, each a pack of 36 assorted items: 7271MNT, 7273MNT, 7270MNT, 7266MNT, 7267MNT, 7272MNT, 7268MNT, 7274MNT, 7269MNT, 7264MNT. Map each group independently and retain its style number in the product name and order snapshots. |
 | 3 | 11 | Active cargo shorts, CT 6872688, pack 6. Excel says pack per color, assorted sizes: create Black, Charcoal and Sky Blue orderable records if confirmed, sharing the CT SKU and differing by stable color key. |
 | 4 | 12 | Fleece shorts, CT 6872684, pack 9 per color. Eight colors pictured; reconcile permitted colors before expanding records. |
 | 5 | 13 | Kids cushions, CT 6880745, case 24, assorted designs. Individual designs are not confirmed as separately orderable. |
@@ -217,3 +217,8 @@ The workbook also has **customer PO/reference** and **phone**, neither of which 
 2. Additive migrations and shared pricing changes with focused regression coverage.
 3. Dedicated dry-run/apply importer with stable mapping, deduplication, audit and rollback records.
 4. Source-to-database reconciliation report and evidence that the order form matches the resolved Excel model.
+
+
+## Updated PDF review - October 8, 2026
+
+The current source is `data/Terra_Nova_FMA_Products_2026.pdf`; the original spaced filename remains as historical evidence. All 27 pages were compared by rendered pixels as well as extracted text. Only pages 1 and 2 changed: the cover is now portrait, and the sweater footer SKU is corrected from 6872209 to 6872709. All ten Northern Trek style records retain their existing product keys, prices, 36-item pack quantities and mapping rectangles. Pages 3-27 render identically. Historical order SKU snapshots remain unchanged.

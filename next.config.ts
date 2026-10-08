@@ -2,6 +2,16 @@ import type { NextConfig } from "next";
 const config: NextConfig = {
   agentRules: false,
   poweredByHeader: false,
+  outputFileTracingIncludes: {
+    "/api/orders": [
+      "./public/images/terra-nova-logo.png",
+      "./public/images/canadian-tire-clean.png",
+    ],
+    "/api/jobs/email": [
+      "./public/images/terra-nova-logo.png",
+      "./public/images/canadian-tire-clean.png",
+    ],
+  },
   async redirects() {
     return [
       { source: "/index.html", destination: "/", permanent: true },

@@ -166,6 +166,33 @@ export function exportOrder(order: Order) {
 export function OrderReceipt({ order }: { order: Order }) {
   return (
     <section className="receipt">
+      <div
+        className="invoice-branding"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 24,
+          marginBottom: 24,
+        }}
+      >
+        <img
+          src="/images/terra-nova-logo.png"
+          alt="Terra Nova"
+          width={260}
+          height={70}
+          style={{ width: "min(60%, 260px)", height: 70, objectFit: "contain" }}
+        />
+        {order.company.trim().toLowerCase() === "canadian tire" && (
+          <img
+            src="/images/canadian-tire-clean.png"
+            alt="Canadian Tire"
+            width={84}
+            height={70}
+            style={{ width: 84, height: 70, objectFit: "contain" }}
+          />
+        )}
+      </div>
       <div className="eyebrow">Order confirmation</div>
       <h2>{order.reference}</h2>
       <p>

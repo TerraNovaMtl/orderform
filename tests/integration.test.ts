@@ -11,6 +11,10 @@ import {
   editOrder,
   getOrder,
   deleteProduct,
+  deleteOrder,
+  deleteAgent,
+  deleteCompany,
+  getAgent,
   lookupStore,
 } from "../src/lib/repository";
 test(
@@ -181,8 +185,17 @@ test(
         ),
         false,
       );
-      await db()`delete from terranova.agents where id=${foreign.id}`;
-      await db()`delete from terranova.companies where name=${`FOREIGN-${suffix}`}`;
+      const [foreignCompany] =
+        await db()`select id from terranova.companies where name=${`FOREIGN-${suffix}`}`;
+      await assert.rejects(
+        deleteCompany(foreignCompany.id, actor),
+        /agent\(s\)/,
+      );
+      await deleteAgent(foreign.id, actor);
+      await deleteCompany(foreignCompany.id, actor);
+      const [deletedCompany] =
+        await db()`select count(*)::int as count from terranova.companies where id=${foreignCompany.id}`;
+      assert.equal(deletedCompany.count, 0);
       const edited = await editOrder(
         { ...first, lines: [{ id: first.lines[0].id, qty: 3 }] },
         actor,
@@ -200,6 +213,7 @@ test(
         /Unknown order line/,
       );
       assert.equal((await getOrder(first.id)).totalDealer, 24.98);
+      await assert.rejects(deleteCompany(companyRow.id, actor), /product\(s\)/);
       await deleteProduct(productId, actor);
       assert.equal((await getOrder(first.id)).lines[0].name, product.name);
       await assert.rejects(
@@ -212,6 +226,48 @@ test(
       const [outbox] =
         await db()`select count(*)::int as count from terranova.email_outbox where order_id=${first.id}`;
       assert.ok(outbox.count >= 1);
+      await assert.rejects(
+        deleteOrder(first.id, first.version, actor),
+        /changed/,
+      );
+      await db()`update terranova.email_outbox set state='sending' where order_id=${first.id}`;
+      await assert.rejects(
+        deleteOrder(first.id, edited.version, actor),
+        /being sent/,
+      );
+      assert.equal((await getOrder(first.id)).totalDealer, 24.98);
+      await db()`update terranova.email_outbox set state='pending' where order_id=${first.id}`;
+      await deleteOrder(first.id, edited.version, actor);
+      await assert.rejects(getOrder(first.id));
+      const [deleted] = await db()`select
+        (select count(*)::int from terranova.order_lines where order_id=${first.id}) as lines,
+        (select count(*)::int from terranova.email_outbox where order_id=${first.id}) as emails,
+        (select count(*)::int from terranova.audit_events where entity_id=${first.id} and action='order.deleted' and actor=${actor}) as audit`;
+      assert.deepEqual({ ...deleted }, { lines: 0, emails: 0, audit: 1 });
+      assert.equal((await getOrder(explicit.id)).totalDealer, 79.92);
+      const [testAgent] =
+        await db()`select id from terranova.agents where code=${code}`;
+      await db()`update terranova.products set restricted=true where id=${productId}`;
+      await db()`insert into terranova.product_agents (product_id,agent_id) values (${productId},${testAgent.id}) on conflict do nothing`;
+      await deleteAgent(testAgent.id, actor);
+      await assert.rejects(getAgent(code));
+      const preserved = await getOrder(explicit.id);
+      assert.equal(preserved.totalDealer, 79.92);
+      assert.equal(preserved.agentName, "Test Agent");
+      assert.equal(preserved.storeCode, "001");
+      const [links] = await db()`select
+        (select count(*)::int from terranova.stores where agent_id=${testAgent.id}) as stores,
+        (select count(*)::int from terranova.product_agents where agent_id=${testAgent.id}) as products`;
+      assert.deepEqual({ ...links }, { stores: 0, products: 0 });
+      const [restricted] =
+        await db()`select restricted,company_id from terranova.products where id=${productId}`;
+      assert.equal(restricted.restricted, true);
+      assert.equal(restricted.company_id, companyRow.id);
+      const [otherAgent] =
+        await db()`select id from terranova.agents where code=${other}`;
+      await deleteAgent(otherAgent.id, actor);
+      await deleteCompany(companyRow.id, actor);
+      assert.equal((await getOrder(explicit.id)).company, company);
     } finally {
       await db().begin(async (tx) => {
         const ids =

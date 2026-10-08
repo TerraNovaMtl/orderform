@@ -38,7 +38,7 @@ export async function deliverEmails() {
     jobs.map(async (job) => {
       try {
         const o = await getOrder(job.order_id);
-        const html = `<h1>Terra Nova order ${esc(o.reference)}</h1><p>${esc(o.company)} · ${esc(o.agentName)}<br>Store ${esc(o.storeCode)} · ${esc(o.contactName)}</p><table><thead><tr><th>Product</th><th>Quantity</th><th>Total</th></tr></thead><tbody>${o.lines.map((l) => `<tr><td>${esc(l.name)}</td><td>${l.qty} ${esc(l.orderUnit)}</td><td>$${l.lineDealer.toFixed(2)}</td></tr>`).join("")}</tbody></table><p><strong>Total: $${o.totalDealer.toFixed(2)}</strong></p><p>${esc(o.comments)}</p>`;
+        const html = `<h1>Terra Nova order ${esc(o.reference)}</h1><p>${esc(o.company)} · ${esc(o.agentName)}<br>Store ${esc(o.storeCode)} · ${esc(o.contactName)}</p><table><thead><tr><th>Product</th><th>Quantity</th><th>Total</th></tr></thead><tbody>${o.lines.map((l) => `<tr><td>${esc(l.name)}</td><td>${l.qty} ${esc(l.orderUnit)}</td><td>$${l.lineDealer.toFixed(2)}</td></tr>`).join("")}</tbody></table><p><strong>Total: $${o.totalDealer.toFixed(2)}</strong></p><p>PO: ${esc(o.customerPo || "")}<br>Phone: ${esc(o.contactPhone || "")}</p><p>${esc(o.comments)}</p>`;
         const payload = job.delivery_payload || {
           from: { name: "Terra Nova", address: process.env.GMAIL_USER },
           to: [

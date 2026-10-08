@@ -133,7 +133,56 @@ test(
       const current = (await listProducts(code)).find(
         (p) => p.id === productId,
       )!;
-      await saveProduct({ ...current, cost: 99 }, actor);
+      const [companyRow] =
+        await db()`select id from terranova.companies where name=${company}`;
+      await saveProduct(
+        {
+          ...current,
+          cost: null,
+          dealerPrice: 3.33,
+          minimumOrder: 4,
+          companyId: companyRow.id,
+        },
+        actor,
+      );
+      await assert.rejects(
+        submitOrder({
+          ...input,
+          idempotencyKey: randomUUID(),
+          lines: [{ productId, qty: 3 }],
+        }),
+        /Minimum order/,
+      );
+      const explicit = await submitOrder({
+        ...input,
+        idempotencyKey: randomUUID(),
+        customerPo: "PO-TEST",
+        contactPhone: "555-0100",
+        lines: [{ productId, qty: 4 }],
+      });
+      assert.equal(explicit.totalDealer, 79.92);
+      assert.equal(explicit.customerPo, "PO-TEST");
+      assert.equal(explicit.contactPhone, "555-0100");
+      assert.equal(explicit.lines[0].cost, null);
+      const foreign = await saveAgent(
+        {
+          company: `FOREIGN-${suffix}`,
+          code: `FOREIGN-${suffix}`,
+          firstName: "",
+          lastName: "",
+          email: "",
+          active: true,
+        },
+        actor,
+      );
+      assert.equal(
+        (await listProducts(`FOREIGN-${suffix}`)).some(
+          (p) => p.id === productId,
+        ),
+        false,
+      );
+      await db()`delete from terranova.agents where id=${foreign.id}`;
+      await db()`delete from terranova.companies where name=${`FOREIGN-${suffix}`}`;
       const edited = await editOrder(
         { ...first, lines: [{ id: first.lines[0].id, qty: 3 }] },
         actor,
@@ -159,7 +208,7 @@ test(
       );
       const [after] =
         await db()`select count(*)::int as count from terranova.orders where agent_code=${code}`;
-      assert.equal(after.count, 1);
+      assert.equal(after.count, 2);
       const [outbox] =
         await db()`select count(*)::int as count from terranova.email_outbox where order_id=${first.id}`;
       assert.ok(outbox.count >= 1);

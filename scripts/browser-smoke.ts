@@ -5,6 +5,12 @@ import assert from "node:assert/strict";
 import { db } from "../src/lib/db";
 import { saveAgent, saveProduct } from "../src/lib/repository";
 import { encode } from "next-auth/jwt";
+if (
+  !process.env.DATABASE_URL_TEST ||
+  process.env.DATABASE_URL_TEST === process.env.DATABASE_URL
+)
+  throw new Error("Separate test database required");
+process.env.DATABASE_URL = process.env.DATABASE_URL_TEST;
 const suffix = randomUUID().slice(0, 8).toUpperCase(),
   code = `BROWSER-${suffix}`,
   company = `BROWSER-${suffix}`,
@@ -74,8 +80,13 @@ try {
   await page.getByRole("button", { name: "Save and view catalog" }).click();
   await page.getByRole("heading", { name: "Stock your shelves." }).waitFor();
   await page
-    .getByRole("spinbutton", { name: "Quantity for Cotton bedding set" })
-    .fill("2");
+    .getByRole("button", { name: "Add Cotton bedding set to cart" })
+    .click();
+  await page
+    .getByRole("button", { name: "Increase quantity for Cotton bedding set" })
+    .click();
+  await page.getByLabel("PO number (optional)").fill("PO-BROWSER");
+  await page.getByLabel("Phone (optional)").fill("555-0100");
   await page.getByLabel("Order notes").fill("Browser test order");
   await page.screenshot({
     path: "test-results/catalog-desktop.png",
@@ -93,6 +104,8 @@ try {
   const [o] =
     await db()`select * from terranova.orders where agent_code=${code}`;
   assert.equal(Number(o.total_dealer), 326.34);
+  assert.equal(o.customer_po, "PO-BROWSER");
+  assert.equal(o.contact_phone, "555-0100");
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download CSV" }).click();
   const download = await downloadPromise;
@@ -185,7 +198,7 @@ try {
     .getByRole("button", { name: "Edit", exact: true })
     .click();
   await page.getByLabel("First name", { exact: true }).fill("Updated");
-  await page.getByRole("button", { name: "Save contact", exact: true }).click();
+  await page.getByRole("button", { name: "Save store", exact: true }).click();
   await page.getByRole("dialog").waitFor({ state: "hidden" });
   await page
     .getByRole("button", { name: "Companies & agents", exact: true })

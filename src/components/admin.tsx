@@ -2,16 +2,19 @@
 import { useEffect, useState } from "react";
 import {
   type Product,
+  type Company,
   type ProductInput,
   type Agent,
   type Store,
   type Order,
   moneyFormat as money,
   snapshotAmounts,
+  dealerPrice,
   sumMoney,
 } from "@/lib/domain";
 import { Modal, OrderReceipt, request, exportOrder } from "./shared";
 type Data = {
+  companies: Company[];
   products: Product[];
   agents: Agent[];
   stores: Store[];
@@ -35,6 +38,7 @@ const blankProduct: ProductInput = {
   agentCodes: [],
 };
 type AgentInput = Omit<Agent, "id"> & { id?: string };
+type StoreInput = Omit<Store, "id"> & { id?: string };
 export function Admin() {
   const [data, setData] = useState<Data | null>(null),
     [tab, setTab] = useState<"orders" | "products" | "agents" | "stores">(
@@ -46,8 +50,9 @@ export function Admin() {
     [notice, setNotice] = useState(""),
     [cancelled, setCancelled] = useState(false);
   const [product, setProduct] = useState<ProductInput | null>(null),
+    [companyName, setCompanyName] = useState<string | null>(null),
     [agent, setAgent] = useState<AgentInput | null>(null),
-    [store, setStore] = useState<Store | null>(null),
+    [store, setStore] = useState<StoreInput | null>(null),
     [order, setOrder] = useState<Order | null>(null),
     [receipt, setReceipt] = useState<Order | null>(null);
   async function refresh() {
@@ -269,8 +274,8 @@ export function Admin() {
                           </td>
                           <td>{p.category}</td>
                           <td>
-                            {money(p.cost)} / {money(p.cost * 1.11)} /{" "}
-                            {money(p.srp)}
+                            {p.cost == null ? "—" : money(p.cost)} /{" "}
+                            {money(dealerPrice(p))} / {money(p.srp)}
                           </td>
                           <td>
                             <span
@@ -314,6 +319,15 @@ export function Admin() {
                   Each access code belongs to one agent within a company.
                 </p>
                 <button
+                  disabled={busy}
+                  onClick={() => {
+                    setError("");
+                    setCompanyName("");
+                  }}
+                >
+                  + Add company
+                </button>
+                <button
                   onClick={() => {
                     setError("");
                     setAgent({
@@ -333,10 +347,16 @@ export function Admin() {
                   + Add agent
                 </button>
               </div>
-              {[...new Set(data.agents.map((a) => a.company))].map(
-                (company) => (
+              {data.companies
+                .map((c) => c.name)
+                .map((company) => (
                   <section key={company} className="card category">
                     <h2>{company}</h2>
+                    {!data.agents.some((a) => a.company === company) && (
+                      <p className="empty">
+                        No agents yet. Use Add agent and choose this company.
+                      </p>
+                    )}
                     <div className="table-scroll">
                       <table>
                         <thead>
@@ -412,11 +432,10 @@ export function Admin() {
                       </table>
                     </div>
                   </section>
-                ),
-              )}
-              {!data.agents.length && (
+                ))}
+              {!data.companies.length && (
                 <p className="empty card">
-                  No agents yet. Add a company and its first agent.
+                  No companies yet. Add a company, then its agents.
                 </p>
               )}
             </>
@@ -425,9 +444,27 @@ export function Admin() {
             <>
               <div className="list-heading">
                 <p className="muted">
-                  Stores register through their agent link. Codes are scoped to
-                  the agent.
+                  Each store belongs to one agent. An agent can manage multiple
+                  stores. Store codes are unique within each agent.
                 </p>
+                <button
+                  disabled={busy || !data.agents.some((a) => a.active)}
+                  onClick={() => {
+                    setError("");
+                    const first = data.agents.find((a) => a.active);
+                    if (first)
+                      setStore({
+                        vendorCode: first.code,
+                        company: first.company,
+                        storeCode: "",
+                        firstName: "",
+                        lastName: "",
+                        email: "",
+                      });
+                  }}
+                >
+                  + Add store
+                </button>
               </div>
               <div className="card table-scroll">
                 <table>
@@ -472,6 +509,23 @@ export function Admin() {
                               }}
                             >
                               Edit
+                            </button>
+                            <button
+                              className="secondary compact danger"
+                              disabled={busy}
+                              onClick={async () => {
+                                if (
+                                  confirm(
+                                    `Deactivate store ${s.storeCode}? It will be removed from active stores. Historical orders will be preserved.`,
+                                  )
+                                )
+                                  await mutate({
+                                    action: "deleteStore",
+                                    id: s.id,
+                                  });
+                              }}
+                            >
+                              Deactivate store
                             </button>
                           </td>
                         </tr>
@@ -670,7 +724,7 @@ export function Admin() {
                   }
                   <input
                     required={key === "category"}
-                    value={product[key]}
+                    value={product[key] ?? ""}
                     onChange={(e) =>
                       setProduct({ ...product, [key]: e.target.value })
                     }
@@ -682,20 +736,79 @@ export function Admin() {
                   {key === "cost" ? "Cost per unit" : "SRP per unit"}
                   <input
                     type="number"
-                    required
+                    required={key === "srp" || product.dealerPrice == null}
                     min="0"
                     max="999999"
                     step="0.0001"
-                    value={product[key]}
+                    value={product[key] ?? ""}
                     onChange={(e) =>
-                      setProduct({ ...product, [key]: Number(e.target.value) })
+                      setProduct({
+                        ...product,
+                        [key]:
+                          key === "cost" && e.target.value === ""
+                            ? null
+                            : Number(e.target.value),
+                      })
                     }
                   />
                 </label>
               ))}
+              <label>
+                Published dealer price (optional)
+                <input
+                  type="number"
+                  min="0"
+                  step="0.0001"
+                  value={product.dealerPrice ?? ""}
+                  onChange={(e) =>
+                    setProduct({
+                      ...product,
+                      dealerPrice:
+                        e.target.value === "" ? null : Number(e.target.value),
+                    })
+                  }
+                />
+              </label>
+              <label>
+                Minimum order quantity
+                <input
+                  type="number"
+                  min="1"
+                  max="100000"
+                  value={product.minimumOrder ?? 1}
+                  onChange={(e) =>
+                    setProduct({
+                      ...product,
+                      minimumOrder: Number(e.target.value),
+                    })
+                  }
+                />
+              </label>
+              <label>
+                Company restriction
+                <select
+                  value={product.companyId ?? ""}
+                  onChange={(e) =>
+                    setProduct({
+                      ...product,
+                      companyId: e.target.value || null,
+                    })
+                  }
+                >
+                  <option value="">All companies</option>
+                  {data?.companies.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <p className="notice span-2">
-                Dealer price: {money(product.cost * 1.11)} per unit (cost ×
-                1.11)
+                Dealer price:{" "}
+                {product.cost == null && product.dealerPrice == null
+                  ? "Missing"
+                  : money(dealerPrice(product))}{" "}
+                per unit
               </p>
               <label>
                 Order unit
@@ -829,6 +942,39 @@ export function Admin() {
           </form>
         </Modal>
       )}
+      {companyName !== null && (
+        <Modal
+          title="Add company"
+          onClose={() => {
+            if (!busy) setCompanyName(null);
+          }}
+        >
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (
+                await mutate({
+                  action: "saveCompany",
+                  data: { name: companyName },
+                })
+              )
+                setCompanyName(null);
+            }}
+          >
+            {modalError}
+            <label>
+              Company name
+              <input
+                required
+                maxLength={200}
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+              />
+            </label>
+            <button disabled={busy}>{busy ? "Saving…" : "Save company"}</button>
+          </form>
+        </Modal>
+      )}
       {agent && (
         <Modal
           title={agent.id ? "Edit agent" : "Add company agent"}
@@ -855,9 +1001,11 @@ export function Admin() {
                 }
               />
               <datalist id="company-names">
-                {[...new Set(data?.agents.map((a) => a.company))].map((c) => (
-                  <option key={c} value={c} />
-                ))}
+                {(data?.companies || [])
+                  .map((company) => company.name)
+                  .map((c) => (
+                    <option key={c} value={c} />
+                  ))}
               </datalist>
             </label>
             <div className="form-grid">
@@ -913,7 +1061,7 @@ export function Admin() {
       )}
       {store && (
         <Modal
-          title={`Edit store ${store.storeCode}`}
+          title={store.id ? `Edit store ${store.storeCode}` : "Add store"}
           onClose={() => {
             if (!busy) setStore(null);
           }}
@@ -926,9 +1074,50 @@ export function Admin() {
             }}
           >
             {modalError}
-            <p>
-              {store.company} · Agent code {store.vendorCode}
-            </p>
+            {store.id ? (
+              <p>
+                {store.company} · Agent code {store.vendorCode}
+              </p>
+            ) : (
+              <label>
+                Company / agent
+                <select
+                  required
+                  value={store.vendorCode}
+                  onChange={(e) => {
+                    const selected = data?.agents.find(
+                      (a) => a.code === e.target.value,
+                    );
+                    if (selected)
+                      setStore({
+                        ...store,
+                        vendorCode: selected.code,
+                        company: selected.company,
+                      });
+                  }}
+                >
+                  {data?.agents
+                    .filter((a) => a.active)
+                    .map((a) => (
+                      <option key={a.id} value={a.code}>
+                        {a.company} · {a.firstName} {a.lastName} ({a.code})
+                      </option>
+                    ))}
+                </select>
+              </label>
+            )}
+            <label>
+              Store code
+              <input
+                required
+                maxLength={64}
+                pattern="[a-zA-Z0-9_-]+"
+                value={store.storeCode}
+                onChange={(e) =>
+                  setStore({ ...store, storeCode: e.target.value })
+                }
+              />
+            </label>
             {(["firstName", "lastName", "email"] as const).map((k) => (
               <label key={k}>
                 {k === "firstName"
@@ -945,23 +1134,25 @@ export function Admin() {
               </label>
             ))}
             <div className="actions">
-              <button disabled={busy}>Save contact</button>
-              <button
-                type="button"
-                disabled={busy}
-                className="secondary danger"
-                onClick={async () => {
-                  if (
-                    confirm(
-                      "Deactivate this store contact? Historical orders will be preserved.",
-                    ) &&
-                    (await mutate({ action: "deleteStore", id: store.id }))
-                  )
-                    setStore(null);
-                }}
-              >
-                Deactivate contact
-              </button>
+              <button disabled={busy}>{busy ? "Saving…" : "Save store"}</button>
+              {store.id && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  className="secondary danger"
+                  onClick={async () => {
+                    if (
+                      confirm(
+                        "Deactivate this store? Historical orders will be preserved.",
+                      ) &&
+                      (await mutate({ action: "deleteStore", id: store.id }))
+                    )
+                      setStore(null);
+                  }}
+                >
+                  Deactivate store
+                </button>
+              )}
             </div>
           </form>
         </Modal>
@@ -983,6 +1174,8 @@ export function Admin() {
                     id: order.id,
                     version: order.version,
                     comments: order.comments,
+                    customerPo: order.customerPo,
+                    contactPhone: order.contactPhone,
                     orderSent: order.orderSent,
                     invoiceSent: order.invoiceSent,
                     paymentReceived: order.paymentReceived,
@@ -1010,14 +1203,17 @@ export function Admin() {
                   aria-label={`Quantity for ${l.name}`}
                   className="quantity"
                   type="number"
-                  min="1"
+                  min={l.minimumOrder ?? 1}
                   max="100000"
                   required
                   value={l.qty}
                   onChange={(e) =>
                     changeLine(
                       l.id,
-                      Math.max(1, Math.floor(Number(e.target.value) || 1)),
+                      Math.max(
+                        l.minimumOrder ?? 1,
+                        Math.floor(Number(e.target.value) || 1),
+                      ),
                     )
                   }
                 />
@@ -1072,6 +1268,27 @@ export function Admin() {
                 </label>
               ))}
             </div>
+            <label>
+              PO number (optional)
+              <input
+                maxLength={200}
+                value={order.customerPo ?? ""}
+                onChange={(e) =>
+                  setOrder({ ...order, customerPo: e.target.value })
+                }
+              />
+            </label>
+            <label>
+              Phone (optional)
+              <input
+                type="tel"
+                maxLength={80}
+                value={order.contactPhone ?? ""}
+                onChange={(e) =>
+                  setOrder({ ...order, contactPhone: e.target.value })
+                }
+              />
+            </label>
             <label>
               Comments
               <textarea

@@ -2,11 +2,13 @@ import { createHash } from "node:crypto";
 import { db, type Tx } from "./db";
 import {
   agentSchema,
+  companySchema,
+  type Company,
   productSchema,
   storeSchema,
   orderSchema,
   editOrderSchema,
-  lineAmounts,
+  productAmounts,
   snapshotAmounts,
   sumMoney,
   type Product,
@@ -57,6 +59,21 @@ export async function agentByCode(
 export async function getAgent(code: string) {
   const a = mapAgent(await agentByCode(code));
   return { ...a, email: undefined };
+}
+export async function listCompanies(): Promise<Company[]> {
+  const rows =
+    await db()`select id,name from terranova.companies order by name`;
+  return rows.map((r) => ({ id: r.id, name: r.name }));
+}
+export async function saveCompany(input: unknown, actor: string) {
+  const c = companySchema.parse(input);
+  return db().begin(async (tx) => {
+    const [row] =
+      await tx`insert into terranova.companies (name) values (${c.name}) on conflict(name) do nothing returning id`;
+    if (!row) throw new AppError("This company already exists.", 409);
+    await audit(tx, actor, "company.created", row.id, { name: c.name });
+    return { id: row.id };
+  });
 }
 export async function listAgents(): Promise<Agent[]> {
   return (
@@ -140,7 +157,10 @@ function mapProduct(r: Row): Product {
     name: r.name,
     sku: r.sku,
     barcode: r.barcode,
-    cost: Number(r.cost),
+    cost: r.cost == null ? null : Number(r.cost),
+    dealerPrice: r.dealer_price == null ? null : Number(r.dealer_price),
+    minimumOrder: r.minimum_order,
+    companyId: r.company_id,
     srp: Number(r.srp),
     orderUnit: r.order_unit,
     unitsPerOrder: r.units_per_order,
@@ -157,8 +177,23 @@ export async function listProducts(vendor?: string): Promise<Product[]> {
   const a = vendor ? await agentByCode(vendor) : null;
   const sql = db();
   const rows =
-    await sql`select p.*, coalesce((select json_agg(a.code order by a.code) from terranova.product_agents pa join terranova.agents a on a.id=pa.agent_id where pa.product_id=p.id),'[]'::json) as agent_codes from terranova.products p where p.archived=false ${a ? sql`and p.status<>'hidden' and (not p.restricted or exists(select 1 from terranova.product_agents pa where pa.product_id=p.id and pa.agent_id=${a.id}))` : sql``} order by p.category,p.name`;
-  return rows.map(mapProduct).map((p) => (a ? { ...p, agentCodes: [] } : p));
+    await sql`select p.*, coalesce((select json_agg(a.code order by a.code) from terranova.product_agents pa join terranova.agents a on a.id=pa.agent_id where pa.product_id=p.id),'[]'::json) as agent_codes from terranova.products p where p.archived=false ${a ? sql`and (p.company_id is null or p.company_id=${a.company_id}) and p.status<>'hidden' and (not p.restricted or exists(select 1 from terranova.product_agents pa where pa.product_id=p.id and pa.agent_id=${a.id}))` : sql``} order by p.category,p.name`;
+  const mappings =
+    a && rows.length
+      ? await sql`select product_id,product_key from terranova.catalog_imports where catalog_key='fma-2026' and product_id in ${sql(rows.map((r) => r.id))}`
+      : [];
+  return rows
+    .map(mapProduct)
+    .map((p) =>
+      a
+        ? {
+            ...p,
+            agentCodes: [],
+            catalogKey: mappings.find((m) => m.product_id === p.id)
+              ?.product_key,
+          }
+        : p,
+    );
 }
 export async function saveProduct(input: unknown, actor: string) {
   const p = productSchema.parse(input);
@@ -173,6 +208,9 @@ export async function saveProduct(input: unknown, actor: string) {
       sku: p.sku,
       barcode: p.barcode,
       cost: p.cost,
+      dealer_price: p.dealerPrice ?? null,
+      minimum_order: p.minimumOrder ?? 1,
+      company_id: p.companyId ?? null,
       srp: p.srp,
       order_unit: p.orderUnit,
       units_per_order: p.unitsPerOrder,
@@ -217,6 +255,7 @@ function mapLine(r: Row): OrderLine {
     dealerUnit: Number(r.dealer_unit),
     srpUnit: Number(r.srp_unit),
     qty: r.qty,
+    minimumOrder: r.minimum_order,
     lineDealer: Number(r.line_dealer),
     lineRetail: Number(r.line_retail),
   };
@@ -234,6 +273,8 @@ function mapOrder(r: Row, lines: Row[]): Order {
     contactName: r.contact_name,
     customerEmail: r.customer_email,
     comments: r.comments,
+    customerPo: r.customer_po,
+    contactPhone: r.contact_phone,
     orderSent: r.order_sent,
     invoiceSent: r.invoice_sent,
     paymentReceived: r.payment_received,
@@ -299,13 +340,24 @@ export async function submitOrder(input: unknown): Promise<Order> {
     const lines = [];
     for (const l of data.lines) {
       const [p] =
-        await tx`select * from terranova.products p where p.id=${l.productId} and not p.archived and p.status='available' and (not p.restricted or exists(select 1 from terranova.product_agents pa where pa.product_id=p.id and pa.agent_id=${a.id})) for share`;
+        await tx`select * from terranova.products p where p.id=${l.productId} and not p.archived and p.status='available' and (p.company_id is null or p.company_id=${a.company_id}) and (not p.restricted or exists(select 1 from terranova.product_agents pa where pa.product_id=p.id and pa.agent_id=${a.id})) for share`;
       if (!p)
         throw new AppError(
           "A selected product is no longer available. Refresh the catalog.",
           409,
         );
-      const amounts = lineAmounts(p.cost, p.srp, l.qty * p.units_per_order);
+      if (l.qty < p.minimum_order)
+        throw new AppError(
+          `Minimum order for ${p.name} is ${p.minimum_order} ${p.order_unit}s`,
+        );
+      const amounts = productAmounts(
+        {
+          cost: p.cost == null ? null : Number(p.cost),
+          dealerPrice: p.dealer_price == null ? null : Number(p.dealer_price),
+          srp: Number(p.srp),
+        },
+        l.qty * p.units_per_order,
+      );
       lines.push({
         product_id: p.id,
         name: p.name,
@@ -315,7 +367,8 @@ export async function submitOrder(input: unknown): Promise<Order> {
         unit_label: p.unit_label,
         units_per_order: p.units_per_order,
         cost: p.cost,
-        dealer_unit: (Number(p.cost) * 1.11).toFixed(6),
+        dealer_unit: amounts.dealerUnit.toFixed(6),
+        minimum_order: p.minimum_order,
         srp_unit: p.srp,
         qty: l.qty,
         line_dealer: amounts.lineDealer,
@@ -325,7 +378,7 @@ export async function submitOrder(input: unknown): Promise<Order> {
     const [number] =
       await tx`select 'TN-' || to_char(now() at time zone 'America/Toronto','YYYYMMDD-HH24MI') || '-' || lpad(nextval('terranova.order_number')::text, 8, '0') as reference`;
     const [o] =
-      await tx`insert into terranova.orders ${tx({ reference: number.reference, agent_id: a.id, store_id: s.id, company_name: a.company, agent_name: [a.first_name, a.last_name].filter(Boolean).join(" "), agent_email: a.email, agent_code: a.code, store_code: s.code, contact_name: `${s.first_name} ${s.last_name}`, customer_email: s.email, comments: data.comments, total_dealer: sumMoney(lines.map((l) => l.line_dealer)), total_retail: sumMoney(lines.map((l) => l.line_retail)), idempotency_key: data.idempotencyKey, request_hash: hash })} returning id`;
+      await tx`insert into terranova.orders ${tx({ reference: number.reference, agent_id: a.id, store_id: s.id, company_name: a.company, agent_name: [a.first_name, a.last_name].filter(Boolean).join(" "), agent_email: a.email, agent_code: a.code, store_code: s.code, contact_name: `${s.first_name} ${s.last_name}`, customer_email: s.email, comments: data.comments, customer_po: data.customerPo ?? "", contact_phone: data.contactPhone ?? "", total_dealer: sumMoney(lines.map((l) => l.line_dealer)), total_retail: sumMoney(lines.map((l) => l.line_retail)), idempotency_key: data.idempotencyKey, request_hash: hash })} returning id`;
     for (const line of lines)
       await tx`insert into terranova.order_lines ${tx({ ...line, order_id: o.id })}`;
     const recipients = [
@@ -364,6 +417,10 @@ export async function editOrder(input: unknown, actor: string) {
     for (const line of d.lines) {
       const old = lines.find((l) => l.id === line.id);
       if (!old) throw new AppError("Unknown order line");
+      if (line.qty < old.minimum_order)
+        throw new AppError(
+          `Minimum order is ${old.minimum_order} ${old.order_unit}s`,
+        );
       const amounts = snapshotAmounts(
         old.dealer_unit,
         old.srp_unit,
@@ -374,7 +431,7 @@ export async function editOrder(input: unknown, actor: string) {
       await tx`update terranova.order_lines set qty=${line.qty},line_dealer=${amounts.lineDealer},line_retail=${amounts.lineRetail} where id=${line.id}`;
     }
     await tx`update terranova.order_lines set removed=true where order_id=${d.id} and id not in ${tx(d.lines.map((l) => l.id))}`;
-    await tx`update terranova.orders set comments=${d.comments},order_sent=${d.orderSent},invoice_sent=${d.invoiceSent},payment_received=${d.paymentReceived},cancelled=${d.cancelled},total_dealer=${dealer / 100},total_retail=${retail / 100},version=version+1,updated_at=now() where id=${d.id}`;
+    await tx`update terranova.orders set comments=${d.comments},customer_po=${d.customerPo ?? previous.customerPo ?? ""},contact_phone=${d.contactPhone ?? previous.contactPhone ?? ""},order_sent=${d.orderSent},invoice_sent=${d.invoiceSent},payment_received=${d.paymentReceived},cancelled=${d.cancelled},total_dealer=${dealer / 100},total_retail=${retail / 100},version=version+1,updated_at=now() where id=${d.id}`;
     await audit(tx, actor, "order.updated", d.id, {
       before: previous,
       after: d,

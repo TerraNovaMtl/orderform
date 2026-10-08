@@ -19,18 +19,42 @@ export async function request<T>(url: string, body?: unknown): Promise<T> {
     });
   return data;
 }
-export function Brand({ admin = false }: { admin?: boolean }) {
+export function Brand({
+  admin = false,
+  company = "",
+}: {
+  admin?: boolean;
+  company?: string;
+}) {
   return (
     <header className="brand-header">
       <a className="brand" href={admin ? "/admin" : "/"}>
-        <img src="/images/image1.png" alt="Terra Nova" />
-        <span>
-          <strong>Terra Nova</strong>
-          <small>
-            {admin ? "Wholesale administration" : "Wholesale collection"}
-          </small>
-        </span>
+        <img
+          src="/images/terra-nova-logo.png"
+          alt="Terra Nova"
+          width={280}
+          height={64}
+          style={{
+            width: "clamp(190px, 24vw, 280px)",
+            height: 64,
+            objectFit: "contain",
+            flexShrink: 0,
+          }}
+        />
+        <small>
+          {admin ? "Wholesale administration" : "Wholesale collection"}
+        </small>
       </a>
+      {company.trim().toLowerCase() === "canadian tire" && (
+        <img
+          src="/images/canadian-tire-clean.png"
+          alt="Canadian Tire"
+          className="dealer-logo"
+          width={84}
+          height={64}
+          style={{ width: 84, height: 64, objectFit: "contain", flexShrink: 0 }}
+        />
+      )}
       <span className="header-note">
         Thoughtfully selected. Ready for your shelves.
       </span>
@@ -83,6 +107,8 @@ export function exportOrder(order: Order) {
     ["Store", order.storeCode],
     ["Contact", order.contactName],
     ["Email", order.customerEmail],
+    ["PO number", order.customerPo],
+    ["Phone", order.contactPhone],
     ["Comments", order.comments],
     [],
     [
@@ -180,6 +206,8 @@ export function OrderReceipt({ order }: { order: Order }) {
         Dealer total <strong>{moneyFormat(order.totalDealer)}</strong>
       </div>
       <p className="muted">Retail value: {moneyFormat(order.totalRetail)}</p>
+      {order.customerPo && <p>PO: {order.customerPo}</p>}
+      {order.contactPhone && <p>Phone: {order.contactPhone}</p>}
       {order.comments && <p className="comments">{order.comments}</p>}
       <div className="actions no-print">
         <button onClick={() => exportOrder(order)} className="secondary">

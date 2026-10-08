@@ -120,6 +120,24 @@ With the development server running, `node --env-file=.env.local --import tsx sc
 
 ## Vercel deployment and cutover
 
+### FMA catalog import
+
+`scripts/prepare-fma.py` reads the two files in `data/`, applies the reviewed corrections, splits per-color apparel packs, and extracts product photographs and Canadian Tire branding. It requires read-only `openpyxl` and `pdfplumber`. Generated manifest, photos, before-state backups and reports live in ignored `migration-data/fma-2026/`.
+
+```sh
+node --env-file=.env.local scripts/migrate.mjs --test
+node --env-file=.env.local --import=tsx scripts/import-fma.ts --test
+node --env-file=.env.local --import=tsx scripts/import-fma.ts --test --apply --publish
+node --env-file=.env.local --import=tsx scripts/verify-fma.ts --test
+node --env-file=.env.local scripts/run-db-tests.mjs
+```
+
+Omit `--test` to select the main database. Default import is a dry run; `--apply` inserts records as **hidden**. Use `--publish` only after the updated application is deployed; it makes the reviewed FMA records available. Reruns preserve product UUIDs and reuse images. Changed manifest records require explicit `--update` and use version checks; archived records require separate review. Before-state backups and source audit records are saved. The importer never creates orders, stores, agents, inventory counts or email jobs.
+
+FMA records are restricted by company UUID to Canadian Tire, independently of optional agent restrictions. Their published dealer price overrides cost markup. Legacy records without an explicit dealer price retain cost × 1.11. Unknown CTC costs remain null. Sock orders begin at four ordering packs, each containing twelve three-pair gift packs. Checkout includes optional PO and phone, persisted in order history, email and exports.
+
+October 7, 2026 implementation status: 97 FMA product records and 97 verified images were rehearsed on the separate test database and loaded into the main database as hidden records. All 31 source rows are represented. The existing 20 main catalog products were verified unchanged. Production publication remains pending deployment of the updated app. See `FMA-IMPORT-PLAN.md` for source decisions and reconciliation details.
+
 Target project: **terranova-orderform**, owned by **Jayem Nolan's projects** (`dunany`), signed in as `mtlaibaker`. The mistakenly created empty Dunany Country Club project was removed; no app credentials were uploaded and no deployment was made there.
 
 On September 30, 2026, the cloud build and deployed read-only checks passed. The project URL is https://terranova-orderform.vercel.app and the admin entry is `/admin`. Vercel classified the first CLI deployment as Production automatically despite no `--prod` flag. The existing GitHub Pages site was not changed. Subsequent preview deploys explicitly use `vercel deploy --target preview --scope dunany`.
@@ -144,3 +162,17 @@ The user confirmed production Google admin sign-in. The supplied `TerraNovaOrder
 The converter recognizes the exact stale 11-heading Orders sheet with the 23-column data layout documented in Apps Script. Original workbook and extraction remain unchanged in ignored `migration-data`; an approved copy records the exclusion. All order totals, line quantities/prices and order status flags reconciled after commit using `scripts/verify-import.mjs`. No email jobs were created. Workbook SHA-256: `f5c871846b4ad816a41307796418438fee474b500c53f744ae850c5cef55f2c1`.
 
 This snapshot import supersedes the earlier pending-import note. It is not a final cutover: the legacy site/Sheet remains unchanged. Any later Sheet changes require reconciliation before switching customer links. Email sender setup, a separate preview database and final cutover remain pending.
+
+### Full-page PDF shopping
+
+The FMA customer catalogue displays its 27 intact source pages one at a time, with Previous/Next buttons and a page selector. Product and colour hit areas map to imported product IDs through `catalog_imports.product_key`; clicking adds the matching case/pack using the existing minimum quantity and dealer pricing. Repeated clicks increment the same variant. Quantity controls are available in the expandable section below the current page, and search finds matching pages while keeping every available colour on that page clickable. Products outside this import retain the standard table catalogue.
+
+To regenerate the page assets and reviewed hit-area map after preparing the import manifest:
+
+```sh
+python3 scripts/prepare-fma-pages.py
+```
+
+Commit `public/images/fma-pages/` and `src/lib/fma-pages.json` with the application. This presentation change requires no new database migration or product re-import.
+
+Northern Trek sweaters on PDF page 2 have ten separately orderable style packs (7271MNT, 7273MNT, 7270MNT, 7266MNT, 7267MNT, 7272MNT, 7268MNT, 7274MNT, 7269MNT, 7264MNT). Each contains 36 assorted items within that style, uses CT SKU 6872209, and totals $719.28 at the published $19.98 per unit. The original row-10 product now represents 7271MNT; nine new stable style keys identify the other packs. Historical order snapshots are retained.

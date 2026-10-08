@@ -7,6 +7,8 @@ export const codeSchema = z
   .regex(/^[a-zA-Z0-9_-]+$/, "Use letters, numbers, hyphens or underscores")
   .transform((x) => x.toUpperCase());
 const text = (max = 200) => z.string().trim().max(max);
+export const companySchema = z.object({ name: text().min(1) });
+export type Company = { id: string; name: string };
 const money = z.coerce
   .number()
   .finite()
@@ -24,30 +26,38 @@ export const storeSchema = z.object({
   lastName: text().min(1),
   email: z.email().max(254),
 });
-export const productSchema = z.object({
-  id: z.uuid().optional(),
-  version: z.number().int().positive().optional(),
-  name: text().min(1),
-  sku: text(),
-  barcode: text(),
-  cost: money,
-  srp: money,
-  orderUnit: text(40).min(1),
-  unitsPerOrder: z.coerce.number().int().min(1).max(100000),
-  unitLabel: text(40).min(1),
-  category: text(100).min(1),
-  style: text(),
-  description: text(4000),
-  image: text(300).refine(
-    (x) =>
-      !x ||
-      /^\/images\/[a-zA-Z0-9_.-]+$/.test(x) ||
-      /^\/api\/images\/[a-f0-9-]{36}$/.test(x),
-    "Choose a catalog image",
-  ),
-  status: z.enum(["available", "unavailable", "hidden"]),
-  agentCodes: z.array(codeSchema).max(500),
-});
+export const productSchema = z
+  .object({
+    id: z.uuid().optional(),
+    version: z.number().int().positive().optional(),
+    name: text().min(1),
+    sku: text(),
+    barcode: text(),
+    cost: money.nullable(),
+    dealerPrice: money.nullable().optional(),
+    minimumOrder: z.number().int().min(1).max(100000).optional(),
+    companyId: z.uuid().nullable().optional(),
+    srp: money,
+    orderUnit: text(40).min(1),
+    unitsPerOrder: z.coerce.number().int().min(1).max(100000),
+    unitLabel: text(40).min(1),
+    category: text(100).min(1),
+    style: text(),
+    description: text(4000),
+    image: text(300).refine(
+      (x) =>
+        !x ||
+        /^\/images\/[a-zA-Z0-9_.-]+$/.test(x) ||
+        /^\/api\/images\/[a-f0-9-]{36}$/.test(x),
+      "Choose a catalog image",
+    ),
+    status: z.enum(["available", "unavailable", "hidden"]),
+    agentCodes: z.array(codeSchema).max(500),
+  })
+  .refine(
+    (p) => p.cost != null || p.dealerPrice != null,
+    "Supply cost or a published dealer price",
+  );
 export const agentSchema = z.object({
   id: z.uuid().optional(),
   company: text().min(1),
@@ -62,6 +72,8 @@ export const orderSchema = z
     vendorCode: codeSchema,
     storeCode: codeSchema,
     comments: text(4000),
+    customerPo: text().optional(),
+    contactPhone: text(80).optional(),
     idempotencyKey: z.uuid(),
     lines: z
       .array(
@@ -82,6 +94,8 @@ export const editOrderSchema = z
     id: z.uuid(),
     version: z.number().int().positive(),
     comments: text(4000),
+    customerPo: text().optional(),
+    contactPhone: text(80).optional(),
     orderSent: z.boolean(),
     invoiceSent: z.boolean(),
     paymentReceived: z.boolean(),
@@ -98,7 +112,11 @@ export const editOrderSchema = z
     "Duplicate order lines",
   );
 export type ProductInput = z.infer<typeof productSchema>;
-export type Product = ProductInput & { id: string; version: number };
+export type Product = ProductInput & {
+  id: string;
+  version: number;
+  catalogKey?: string;
+};
 export type Agent = z.infer<typeof agentSchema> & { id: string };
 export type Store = z.infer<typeof storeSchema> & {
   id: string;
@@ -117,6 +135,7 @@ export type OrderLine = {
   dealerUnit: number;
   srpUnit: number;
   qty: number;
+  minimumOrder?: number;
   lineDealer: number;
   lineRetail: number;
 };
@@ -132,6 +151,8 @@ export type Order = {
   contactName: string;
   customerEmail: string;
   comments: string;
+  customerPo?: string;
+  contactPhone?: string;
   orderSent: boolean;
   invoiceSent: boolean;
   paymentReceived: boolean;
@@ -142,6 +163,23 @@ export type Order = {
 };
 
 // Exact decimal arithmetic: preserve cost × 1.11 until rounding each line to cents.
+export function dealerPrice(p: {
+  cost: number | null;
+  dealerPrice?: number | null;
+}) {
+  if (p.dealerPrice != null) return p.dealerPrice;
+  if (p.cost == null) throw new Error("Missing product price");
+  return p.cost * 1.11;
+}
+export function productAmounts(
+  p: { cost: number | null; dealerPrice?: number | null; srp: number },
+  units: number,
+) {
+  return {
+    dealerUnit: dealerPrice(p),
+    ...snapshotAmounts(dealerPrice(p), p.srp, units),
+  };
+}
 function scaled(value: number | string, digits: number): bigint {
   const fixed = Number(value).toFixed(digits);
   return BigInt(fixed.replace(".", ""));

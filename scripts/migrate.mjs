@@ -1,7 +1,11 @@
 import postgres from "postgres";
 import { readFile, readdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
-const sql = postgres(process.env.DATABASE_URL, { max: 1, prepare: false });
+const url = process.argv.includes("--test")
+  ? process.env.DATABASE_URL_TEST
+  : process.env.DATABASE_URL;
+if (!url) throw new Error("Selected database is not configured");
+const sql = postgres(url, { max: 1, prepare: false });
 try {
   await sql.begin(async (tx) => {
     await tx`select pg_advisory_xact_lock(872391101)`;

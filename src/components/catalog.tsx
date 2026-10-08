@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import {
-  lineAmounts,
+  productAmounts,
+  dealerPrice,
   sumMoney,
   moneyFormat as money,
   type Agent,
@@ -10,6 +11,7 @@ import {
   type Order,
 } from "@/lib/domain";
 import { Modal, OrderReceipt, request } from "./shared";
+import { PdfCatalog } from "./pdf-catalog";
 export function Catalog({ code }: { code: string }) {
   const [agent, setAgent] = useState<Agent | null>(null),
     [products, setProducts] = useState<Product[]>([]),
@@ -28,6 +30,8 @@ export function Catalog({ code }: { code: string }) {
     [busy, setBusy] = useState(false),
     [qty, setQty] = useState<Record<string, number>>({}),
     [comments, setComments] = useState(""),
+    [customerPo, setCustomerPo] = useState(""),
+    [contactPhone, setContactPhone] = useState(""),
     [review, setReview] = useState(false),
     [receipt, setReceipt] = useState<Order | null>(null),
     [search, setSearch] = useState(""),
@@ -58,6 +62,8 @@ export function Catalog({ code }: { code: string }) {
       if (saved) {
         setQty(saved.qty || {});
         setComments(saved.comments || "");
+        setCustomerPo(saved.customerPo || "");
+        setContactPhone(saved.contactPhone || "");
         setStoreCode(saved.storeCode || "");
       }
     } catch {}
@@ -70,7 +76,7 @@ export function Catalog({ code }: { code: string }) {
     .map((p) => ({
       p,
       qty: qty[p.id],
-      ...lineAmounts(p.cost, p.srp, qty[p.id] * p.unitsPerOrder),
+      ...productAmounts(p, qty[p.id] * p.unitsPerOrder),
     }));
   const total = sumMoney(lines.map((l) => l.lineDealer)),
     units = lines.reduce((s, l) => s + l.qty * l.p.unitsPerOrder, 0);
@@ -78,9 +84,18 @@ export function Catalog({ code }: { code: string }) {
     if (!loading && !receipt)
       sessionStorage.setItem(
         draftKey,
-        JSON.stringify({ qty, comments, storeCode }),
+        JSON.stringify({ qty, comments, customerPo, contactPhone, storeCode }),
       );
-  }, [qty, comments, storeCode, loading, receipt, draftKey]);
+  }, [
+    qty,
+    comments,
+    customerPo,
+    contactPhone,
+    storeCode,
+    loading,
+    receipt,
+    draftKey,
+  ]);
   async function lookup(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -124,6 +139,8 @@ export function Catalog({ code }: { code: string }) {
         vendorCode: code.toUpperCase(),
         storeCode: store!.storeCode,
         comments,
+        customerPo,
+        contactPhone,
         lines: lines.map((l) => ({ productId: l.p.id, qty: l.qty })),
       };
       const signature = JSON.stringify(payload);
@@ -184,6 +201,8 @@ export function Catalog({ code }: { code: string }) {
             setReceipt(null);
             setQty({});
             setComments("");
+            setCustomerPo("");
+            setContactPhone("");
             sessionStorage.removeItem(`${draftKey}-submission`);
           }}
         >
@@ -328,10 +347,11 @@ export function Catalog({ code }: { code: string }) {
       .toLowerCase()
       .includes(search.toLowerCase()),
   );
-  const categories = [...new Set(shown.map((p) => p.category))];
+  const tableProducts = shown.filter((p) => !p.catalogKey);
+  const categories = [...new Set(tableProducts.map((p) => p.category))];
   // Lightbox steps through products in the order the catalog displays them.
   const ordered = categories.flatMap((category) =>
-    shown.filter((p) => p.category === category),
+    tableProducts.filter((p) => p.category === category),
   );
   const lightboxIndex = lightbox
     ? ordered.findIndex((p) => p.id === lightbox.id)
@@ -357,7 +377,7 @@ export function Catalog({ code }: { code: string }) {
           type="button"
           className="add-to-cart"
           aria-label={`Add ${p.name} to cart`}
-          onClick={() => setProductQty(p.id, 1)}
+          onClick={() => setProductQty(p.id, p.minimumOrder ?? 1)}
         >
           Add to Cart
         </button>
@@ -372,7 +392,12 @@ export function Catalog({ code }: { code: string }) {
           type="button"
           className="secondary"
           aria-label={`Decrease quantity for ${p.name}`}
-          onClick={() => setProductQty(p.id, qty[p.id] - 1)}
+          onClick={() =>
+            setProductQty(
+              p.id,
+              qty[p.id] <= (p.minimumOrder ?? 1) ? 0 : qty[p.id] - 1,
+            )
+          }
         >
           −
         </button>
@@ -435,12 +460,28 @@ export function Catalog({ code }: { code: string }) {
                 : "Your agent’s catalog is being prepared. Please contact your vendor."}
             </div>
           )}
+          <PdfCatalog
+            products={products}
+            search={search}
+            qty={qty}
+            controls={cartControl}
+            add={(p) =>
+              setQty((current) => ({
+                ...current,
+                [p.id]: Math.min(
+                  100000,
+                  current[p.id] > 0 ? current[p.id] + 1 : (p.minimumOrder ?? 1),
+                ),
+              }))
+            }
+          />
           {categories.map((category) => (
             <section className="category card" key={category}>
               <h2>
                 {category}
                 <span>
-                  {shown.filter((p) => p.category === category).length} products
+                  {tableProducts.filter((p) => p.category === category).length}{" "}
+                  products
                 </span>
               </h2>
               <div className="table-scroll">
@@ -455,7 +496,7 @@ export function Catalog({ code }: { code: string }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {shown
+                    {tableProducts
                       .filter((p) => p.category === category)
                       .map((p) => (
                         <tr key={p.id}>
@@ -481,6 +522,11 @@ export function Catalog({ code }: { code: string }) {
                                   1 {p.orderUnit} = {p.unitsPerOrder}{" "}
                                   {p.unitLabel}
                                 </small>
+                                {(p.minimumOrder ?? 1) > 1 && (
+                                  <small>
+                                    Minimum {p.minimumOrder} {p.orderUnit}s
+                                  </small>
+                                )}
                                 {p.description && (
                                   <small>{p.description}</small>
                                 )}
@@ -488,13 +534,13 @@ export function Catalog({ code }: { code: string }) {
                             </div>
                           </td>
                           <td>{money(p.srp)}</td>
-                          <td>{money(p.cost)}</td>
+                          <td>{p.cost == null ? "—" : money(p.cost)}</td>
                           <td>
-                            <strong>{money(p.cost * 1.11)}</strong>
+                            <strong>{money(dealerPrice(p))}</strong>
                             <small>
                               {p.srp
                                 ? (
-                                    ((p.srp - p.cost * 1.11) / p.srp) *
+                                    ((p.srp - dealerPrice(p)) / p.srp) *
                                     100
                                   ).toFixed(1)
                                 : "—"}
@@ -523,6 +569,11 @@ export function Catalog({ code }: { code: string }) {
               <div className="summary-line" key={l.p.id}>
                 <span>
                   {l.p.name}
+                  {l.p.catalogKey === "row-19"
+                    ? " - Twin"
+                    : l.p.catalogKey === "row-20"
+                      ? " - Queen"
+                      : ""}
                   <small>
                     {l.qty} {l.p.orderUnit} · {l.qty * l.p.unitsPerOrder}{" "}
                     {l.p.unitLabel}
@@ -565,6 +616,23 @@ export function Catalog({ code }: { code: string }) {
             </span>
             <strong>{money(total)}</strong>
           </div>
+          <label>
+            PO number (optional)
+            <input
+              maxLength={200}
+              value={customerPo}
+              onChange={(e) => setCustomerPo(e.target.value)}
+            />
+          </label>
+          <label>
+            Phone (optional)
+            <input
+              type="tel"
+              maxLength={80}
+              value={contactPhone}
+              onChange={(e) => setContactPhone(e.target.value)}
+            />
+          </label>
           <label>
             Order notes
             <textarea
@@ -615,6 +683,8 @@ export function Catalog({ code }: { code: string }) {
           <div className="receipt-total">
             Total <strong>{money(total)}</strong>
           </div>
+          {customerPo && <p>PO: {customerPo}</p>}
+          {contactPhone && <p>Phone: {contactPhone}</p>}
           {comments && <p>{comments}</p>}
           {error && (
             <p className="error" role="alert">
@@ -670,7 +740,7 @@ export function Catalog({ code }: { code: string }) {
                   {lightbox.unitLabel}
                 </small>
                 <p>
-                  <strong>{money(lightbox.cost * 1.11)}</strong>{" "}
+                  <strong>{money(dealerPrice(lightbox))}</strong>{" "}
                   <span className="muted">
                     dealer · SRP {money(lightbox.srp)}
                   </span>

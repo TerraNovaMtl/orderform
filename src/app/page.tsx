@@ -1,5 +1,6 @@
 import { Catalog } from "@/components/catalog";
 import { Brand } from "@/components/shared";
+import { getAgent } from "@/lib/repository";
 export default async function Page({
   searchParams,
 }: {
@@ -7,9 +8,14 @@ export default async function Page({
 }) {
   const params = await searchParams;
   const code = typeof params.vendor === "string" ? params.vendor.trim() : "";
+  const company = code
+    ? await getAgent(code)
+        .then((a) => a.company)
+        .catch(() => "")
+    : "";
   return (
     <>
-      <Brand />
+      <Brand company={company} />
       {code ? <Catalog code={code} /> : <AccessRequired />}
       <footer>Terra Nova · Wholesale ordering</footer>
     </>

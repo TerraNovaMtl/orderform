@@ -2,6 +2,8 @@ import { z } from "zod";
 import { adminEmail } from "@/lib/auth";
 import {
   listProducts,
+  listCompanies,
+  saveCompany,
   listAgents,
   listStores,
   listOrders,
@@ -20,16 +22,16 @@ export async function GET() {
   try {
     if (!(await adminEmail()))
       throw new AppError("Admin sign-in required", 401);
-    const [products, agents, stores, orders, notifications] = await Promise.all(
-      [
+    const [products, companies, agents, stores, orders, notifications] =
+      await Promise.all([
         listProducts(),
+        listCompanies(),
         listAgents(),
         listStores(),
         listOrders(),
         db()`select state,count(*)::int as count from terranova.email_outbox group by state`,
-      ],
-    );
-    return json({ products, agents, stores, orders, notifications });
+      ]);
+    return json({ products, companies, agents, stores, orders, notifications });
   } catch (e) {
     return errorResponse(e);
   }
@@ -41,6 +43,9 @@ export async function POST(req: Request) {
     const body = await readJson(req);
     let result;
     switch (body.action) {
+      case "saveCompany":
+        result = await saveCompany(body.data, actor);
+        break;
       case "saveProduct":
         result = await saveProduct(body.data, actor);
         break;

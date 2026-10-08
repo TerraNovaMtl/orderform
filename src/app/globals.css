@@ -152,6 +152,7 @@ footer {
   margin-top: 50px;
 }
 .brand-header {
+  gap: 20px;
   height: 94px;
   background: white;
   border-bottom: 1px solid var(--line);
@@ -162,19 +163,20 @@ footer {
 }
 .brand {
   display: flex;
-  align-items: center;
-  gap: 14px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
   text-decoration: none;
 }
 .brand img {
-  width: 58px;
-  height: 58px;
+  width: 280px;
+  height: 64px;
   object-fit: contain;
 }
-.brand strong {
-  font-size: 25px;
-  letter-spacing: -0.8px;
-  display: block;
+.dealer-logo {
+  width: 84px;
+  height: 64px;
+  object-fit: contain;
 }
 .brand small {
   text-transform: uppercase;
@@ -708,6 +710,14 @@ dialog::backdrop {
     height: 80px;
     padding: 0 22px;
   }
+  .brand img {
+    width: 200px;
+    height: 53px;
+  }
+  .dealer-logo {
+    width: 80px;
+    height: 66px;
+  }
   .agent-strip {
     flex-wrap: wrap;
     gap: 8px 20px;
@@ -911,4 +921,146 @@ dialog::backdrop {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.pdf-page-card {
+  margin-bottom: 28px;
+  overflow: hidden;
+}
+.pdf-page-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.pdf-page-heading h2 {
+  margin: 0;
+  font-size: 16px;
+}
+.pdf-page-heading a {
+  font-size: 12px;
+}
+.pdf-page-sheet {
+  position: relative;
+  width: 100%;
+  background: white;
+}
+.pdf-page-sheet > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.pdf-product-region {
+  position: absolute;
+  padding: 0;
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.pdf-product-region:hover,
+.pdf-product-region:focus-visible {
+  background: rgb(31 66 82 / 8%);
+  border-color: var(--ink);
+  outline: 2px solid white;
+}
+.pdf-product-region.selected {
+  border-color: var(--green);
+}
+.pdf-product-region:disabled {
+  cursor: default;
+  background: rgb(255 255 255 / 35%);
+}
+.pdf-product-region span {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: var(--green);
+  color: white;
+  padding: 3px 6px;
+  font-size: 11px;
+}
+.pdf-page-options {
+  padding: 0 20px;
+}
+.pdf-page-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+.pdf-page-option small {
+  display: block;
+  color: var(--muted);
+  margin-top: 4px;
+  font-size: 12px;
+}
+.pdf-cart-feedback {
+  position: static;
+  z-index: 2;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 13px;
+}
+@media (max-width: 600px) {
+  .pdf-page-option {
+    flex-wrap: wrap;
+  }
+}
+
+.pdf-page-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.pdf-page-navigation label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+}
+.pdf-page-navigation select {
+  width: 72px;
+  margin: 0;
+}
+.pdf-page-navigation span {
+  color: var(--muted);
+}
+.pdf-page-options summary {
+  cursor: pointer;
+  padding: 15px 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+@media (max-width: 600px) {
+  .pdf-page-navigation {
+    flex-wrap: wrap;
+  }
+  .pdf-page-navigation label {
+    order: -1;
+    width: 100%;
+    justify-content: center;
+  }
+}
+.pdf-bottom-pages {
+  justify-content: center;
+  margin: 0;
+  padding: 14px;
+  border-top: 1px solid var(--line);
+}
+.pdf-turn {
+  font-size: 22px;
+  min-width: 36px;
+}
+.pdf-reader-stage {
+  background: #f4f3ef;
 }

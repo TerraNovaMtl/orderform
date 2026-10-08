@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef } from "react";
 import { csvCell, moneyFormat, type Order } from "@/lib/domain";
+import { LocalInstanceBadge } from "./local-instance-badge";
 export async function request<T>(url: string, body?: unknown): Promise<T> {
   const res = await fetch(
     url,
@@ -45,6 +46,7 @@ export function Brand({
           {admin ? "Wholesale administration" : "Wholesale collection"}
         </small>
       </a>
+      <LocalInstanceBadge />
       {company.trim().toLowerCase() === "canadian tire" && (
         <img
           src="/images/canadian-tire-clean.png"

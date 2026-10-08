@@ -417,11 +417,7 @@ export async function submitOrder(input: unknown): Promise<Order> {
       await tx`insert into terranova.order_lines ${tx({ ...line, order_id: o.id })}`;
     const recipients = [
       ...new Set(
-        [
-          process.env.ORDER_EMAIL || "terranova.mtl.ai@gmail.com",
-          s.email,
-          a.email,
-        ]
+        [process.env.ORDER_EMAIL || "terranova.mtl.ai@gmail.com", s.email]
           .filter(Boolean)
           .map((x) => x!.trim().toLowerCase()),
       ),

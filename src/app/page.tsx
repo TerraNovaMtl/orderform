@@ -9,7 +9,7 @@ import { getAgent } from "@/lib/repository";
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ vendor?: string }>;
+  searchParams: Promise<{ vendor?: string; store?: string }>;
 }) {
   const params = await searchParams;
   const code = typeof params.vendor === "string" ? params.vendor.trim() : "";
@@ -21,7 +21,16 @@ export default async function Page({
   return (
     <LanguageProvider>
       <Brand company={company} />
-      {code ? <Catalog code={code} /> : <CustomerAccess />}
+      {code ? (
+        <Catalog
+          code={code}
+          initialStoreCode={
+            typeof params.store === "string" ? params.store.trim() : ""
+          }
+        />
+      ) : (
+        <CustomerAccess />
+      )}
       <CustomerFooter />
     </LanguageProvider>
   );

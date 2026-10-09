@@ -606,6 +606,15 @@ export function Admin() {
                             >
                               Edit
                             </button>
+                            <a
+                              className="agent-open"
+                              href={`/?vendor=${encodeURIComponent(s.vendorCode)}&store=${encodeURIComponent(s.storeCode)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              aria-label={`Open ordering page for store ${s.storeCode}`}
+                            >
+                              Open ↗
+                            </a>
                             <button
                               className="secondary compact danger"
                               disabled={busy}

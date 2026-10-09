@@ -13,7 +13,13 @@ import {
 import { Modal, OrderReceipt, request } from "./shared";
 import { hasUploadedPage } from "@/lib/catalog-pages";
 import { CatalogInstructions, PdfCatalog } from "./pdf-catalog";
-export function Catalog({ code }: { code: string }) {
+export function Catalog({
+  code,
+  initialStoreCode = "",
+}: {
+  code: string;
+  initialStoreCode?: string;
+}) {
   const { t, money } = useLanguage();
   const [agent, setAgent] = useState<Agent | null>(null),
     [products, setProducts] = useState<Product[]>([]),
@@ -45,8 +51,19 @@ export function Catalog({ code }: { code: string }) {
     request<{ agent: Agent; products: Product[] }>(
       `/api/catalog?vendor=${encodeURIComponent(code)}`,
     )
-      .then((d) => {
+      .then(async (d) => {
+        const selected = initialStoreCode
+          ? await request<{ store: Store | null }>("/api/stores", {
+              action: "lookup",
+              vendorCode: code,
+              storeCode: initialStoreCode,
+            })
+          : null;
         if (active) {
+          if (initialStoreCode) {
+            setStoreCode(initialStoreCode);
+            setStore(selected?.store ?? null);
+          }
           setAgent(d.agent);
           setProducts(d.products);
         }
@@ -62,7 +79,11 @@ export function Catalog({ code }: { code: string }) {
       });
     try {
       const saved = JSON.parse(sessionStorage.getItem(draftKey) || "null");
-      if (saved) {
+      if (
+        saved &&
+        (!initialStoreCode ||
+          saved.storeCode?.toUpperCase() === initialStoreCode.toUpperCase())
+      ) {
         setQty(saved.qty || {});
         setComments(saved.comments || "");
         setCustomerPo(saved.customerPo || "");
@@ -73,7 +94,7 @@ export function Catalog({ code }: { code: string }) {
     return () => {
       active = false;
     };
-  }, [code, draftKey]);
+  }, [code, draftKey, initialStoreCode]);
   const lines = products
     .filter((p) => qty[p.id] > 0)
     .map((p) => ({

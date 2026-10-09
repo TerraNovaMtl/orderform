@@ -689,6 +689,7 @@ export function Catalog({ code }: { code: string }) {
                 <tr key={l.p.id}>
                   <td>
                     {l.p.name}
+                    {l.p.sku && <small>SKU: {l.p.sku}</small>}
                     <small>
                       {l.qty} {l.p.orderUnit} · {l.qty * l.p.unitsPerOrder}{" "}
                       {l.p.unitLabel}

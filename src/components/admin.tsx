@@ -530,7 +530,8 @@ export function Admin() {
               <div className="list-heading">
                 <p className="muted">
                   Each store belongs to one agent. An agent can manage multiple
-                  stores. Store codes are unique within each agent.
+                  stores. Canadian Tire Store Numbers are unique within each
+                  agent.
                 </p>
                 <button
                   disabled={busy || !data.agents.some((a) => a.active)}
@@ -1308,7 +1309,7 @@ export function Admin() {
               </label>
             )}
             <label>
-              Store code
+              Canadian Tire Store Number
               <input
                 required
                 maxLength={64}

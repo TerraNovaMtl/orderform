@@ -236,7 +236,7 @@ export function Catalog({ code }: { code: string }) {
           {step === "lookup" ? (
             <form onSubmit={lookup}>
               <label>
-                Store code
+                Canadian Tire Store Number
                 <input
                   required
                   maxLength={64}
@@ -247,7 +247,8 @@ export function Catalog({ code }: { code: string }) {
                 />
               </label>
               <p className="muted">
-                New here? Enter your store code and we’ll help you register.
+                New here? Enter your Canadian Tire Store Number and we’ll help
+                you register.
               </p>
               <button disabled={busy}>
                 {busy ? "Looking up…" : "Continue →"}
@@ -283,7 +284,7 @@ export function Catalog({ code }: { code: string }) {
                   className="text-button"
                   onClick={() => setStep("lookup")}
                 >
-                  Use another store code
+                  Use another Canadian Tire Store Number
                 </button>
               </div>
             </>

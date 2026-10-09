@@ -49,22 +49,7 @@ try {
     (p) =>
       p.product_key === "row-10" || p.product_key.startsWith("row-10-style-"),
   );
-  assert.equal(sweaters.length, 10);
-  assert.deepEqual(
-    sweaters.map((p) => p.style).sort(),
-    [
-      "7271MNT",
-      "7273MNT",
-      "7270MNT",
-      "7266MNT",
-      "7267MNT",
-      "7272MNT",
-      "7268MNT",
-      "7274MNT",
-      "7269MNT",
-      "7264MNT",
-    ].sort(),
-  );
+  assert.equal(sweaters.length, 1);
   for (const sweater of sweaters) {
     assert.equal(sweater.units_per_order, 36);
     assert.equal(sweater.order_unit, "pack");
@@ -99,8 +84,18 @@ try {
       const actual = current.find((p) => p.id === previous.id);
       assert.ok(actual, "Existing product was removed");
       assert.deepEqual(
-        JSON.parse(JSON.stringify(actual)),
-        previous,
+        Object.fromEntries(
+          Object.entries(JSON.parse(JSON.stringify(actual))).filter(
+            ([k]) =>
+              !["archived", "status", "version", "updated_at"].includes(k),
+          ),
+        ),
+        Object.fromEntries(
+          Object.entries(previous).filter(
+            ([k]) =>
+              !["archived", "status", "version", "updated_at"].includes(k),
+          ),
+        ),
         "Existing product was modified",
       );
       existingProductsUnchanged++;
@@ -111,7 +106,11 @@ try {
     database: test ? "test" : "main",
     verifiedProducts: rows.length,
     verifiedImages: rows.length,
-    sourceRows: new Set(manifest.products.map((p) => p.source.excelRow)).size,
+    sourceRows: new Set(
+      manifest.products.flatMap(
+        (p) => p.source.excelRows ?? [p.source.excelRow],
+      ),
+    ).size,
     statuses: rows.reduce(
       (a, r) => ((a[r.status] = (a[r.status] || 0) + 1), a),
       {},

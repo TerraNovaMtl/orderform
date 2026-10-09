@@ -11,6 +11,8 @@ w=openpyxl.load_workbook(XLS,data_only=True)
 s=w.active
 # Independently ordered per-color packs, with assorted sizes, as confirmed by user.
 colors={11:['Black','Charcoal','Sky Blue'],12:['Green','Sage','Sky Blue','Maroon','Ash','Grey','Charcoal','Black'],28:['Green','Sage','Sky Blue','Maroon','Ash','Grey','Charcoal','Black'],29:['Grey Mix','Charcoal Mix','Black','Ash','Navy','Chocolate','Green'],30:['Grey Mix','Charcoal Mix','Black','Ash','Navy','Chocolate'],31:['Navy','Black','Grey Mix','Ash Mix','Charcoal Mix','Chocolate'],32:['Ash','Navy','Black','Grey Mix','Charcoal Mix','Chocolate'],33:['Ash','Navy','Black','Grey Mix','Charcoal Mix','Chocolate'],34:['Black','Grey','Navy'],35:['Grey Melange','Black','Graphite Heather'],36:['Black','Charcoal','Grey','Navy Blue','Dusty Rose'],37:['Sky','Teal','Black','Navy Blue'],38:['Ash','Black','Blue'],39:['Black','Navy Blue','Sky Blue']}
+color_rows=set(colors)
+colors={} # Customers now order an assorted pack rather than selecting a colour.
 # Photo-only crop rectangles, normalized against PDF page width and height.
 regions={2:(.02,.18,.98,.86),3:(.02,.32,.80,.57),4:(.02,.29,.81,.66),5:(.03,.44,.67,.80),6:(.01,.20,.99,.79),7:(.02,.30,.98,.65),8:(.02,.35,.98,.61),9:(.02,.22,.98,.71),10:(.02,.40,.98,.77),11:(.03,.30,.49,.74),12:(.02,.22,.60,.67),14:(.02,.22,.98,.55),15:(.02,.28,.81,.65),16:(.05,.49,.95,.70),17:(.02,.53,.98,.73),18:(.02,.53,.98,.73),19:(.02,.53,.98,.73),20:(.02,.53,.98,.73),21:(.03,.55,.72,.80),22:(.04,.34,.80,.65),23:(.02,.33,.82,.59),24:(.02,.31,.80,.55),25:(.02,.32,.81,.58),26:(.02,.32,.81,.59),27:(.04,.28,.51,.83)}
 records=[]
@@ -54,29 +56,20 @@ with pdfplumber.open(PDF) as pdf:
    im.thumbnail((1100,1100))
    file=OUT/f'{key}.jpg';im.save(file,quality=88)
    description=str(vals[13] or '').strip()
-   if color:description=f'{color}; assorted sizes. '+description
+   if r in color_rows:description='Assorted colours and sizes. '+description
    if r==14:description='One ordering pack contains 12 three-pair gift packs, including Barnyard, Princess, Truck and Monsters. Minimum 4 ordering packs (48 gift packs). CT identifiers: '+', '.join(skus)
    unit='sets' if 19<=r<=26 else ('gift packs' if r==14 else 'items')
-   records.append(dict(key=key,name=name+(f' - {color}' if color else ''),category=category,style=style,sku=sku,barcode=upc,cost=cost,dealerPrice=dealer,srp=retail,orderUnit='pack' if color or r==14 else 'case',unitsPerOrder=pack,unitLabel=unit,minimumOrder=4 if r==14 else 1,description=description,imageFile=file.name,imageSha256=hashlib.sha256(file.read_bytes()).hexdigest(),source=dict(pdfPage=page,excelRow=r,color=color,crop=rect,ctSkus=skus,excelValues=vals,decision='User-confirmed PDF corrections; Excel case quantities')))
- # Each Northern Trek style group is one independently ordered 36-item pack.
- sweater_styles=['7271MNT','7273MNT','7270MNT','7266MNT','7267MNT','7272MNT','7268MNT','7274MNT','7269MNT','7264MNT']
- base=next(p for p in records if p['key']=='row-10')
- records.remove(base)
- for index,style_code in enumerate(sweater_styles):
-  if index < 9:
-   x0,x1=[(.015,.31),(.32,.68),(.69,.985)][index%3]
-   y0,y1=[(.185,.375),(.375,.565),(.565,.73)][index//3]
-  else:x0,y0,x1,y1=.015,.735,.41,.93
-  rect=(x0,y0,x1,y1)
-  key='row-10' if index==0 else 'row-10-style-'+style_code.lower()
-  p=pdf.pages[1]
-  box=(x0*p.width,y0*p.height,x1*p.width,y1*p.height)
-  im=p.crop(box).to_image(resolution=140).original.convert('RGB');im.thumbnail((1100,1100))
-  file=OUT/f'{key}.jpg';im.save(file,quality=88)
-  item=json.loads(json.dumps(base))
-  item.update(key=key,name="Northern Trek Men's Sweaters - "+style_code,style=style_code,orderUnit='pack',unitsPerOrder=36,description='Assorted colours and sizes within style '+style_code+'. One pack contains 36 items.',imageFile=file.name,imageSha256=hashlib.sha256(file.read_bytes()).hexdigest())
-  item['source'].update(crop=rect,styleGroup=style_code,decision='User confirmed each of the 10 Northern Trek style groups is a separate 36-item pack')
-  records.append(item)
+   records.append(dict(key=key,name=name+(f' - {color}' if color else ''),category=category,style=style,sku=sku,barcode=upc,cost=cost,dealerPrice=dealer,srp=retail,orderUnit='pack' if r in color_rows or r==14 else 'case',unitsPerOrder=pack,unitLabel=unit,minimumOrder=4 if r==14 else 1,description=description,imageFile=file.name,imageSha256=hashlib.sha256(file.read_bytes()).hexdigest(),source=dict(pdfPage=page,excelRow=r,color=color,crop=rect,ctSkus=skus,excelValues=vals,decision='User-confirmed PDF corrections; Excel case quantities')))
+ # Consolidate shipper-selected styles while retaining source identifiers.
+ sweater=next(p for p in records if p['key']=='row-10')
+ sweater.update(orderUnit='pack',unitsPerOrder=36,description='Assorted styles, colours and sizes selected by the shipper. One pack contains 36 items.')
+ quilts=[p for p in records if 22<=p['source']['excelRow']<=26]
+ quilt=quilts[0]
+ quilt_skus=[p['sku'] for p in quilts]
+ quilt.update(name='3-PC Quilt Set - DQ - Assorted',style='Assorted styles selected by shipper',sku=' / '.join(p['sku'] for p in quilts),description='Assorted quilt styles selected by the shipper. One case contains 4 sets.')
+ quilt['source']['excelRows']=[22,23,24,25,26]
+ quilt['source']['ctSkus']=quilt_skus
+ records=[p for p in records if p not in quilts[1:]]
  # Canadian Tire logo, extracted from the supplied soccer page header.
  p=pdf.pages[2];p.crop((p.width*.81,p.height*.008,p.width*.985,p.height*.115)).to_image(resolution=160).original.save(ROOT/'public/images/canadian-tire.png')
 manifest=dict(catalogKey='fma-2026',company='Canadian Tire',sources={PDF.name:hashlib.sha256(PDF.read_bytes()).hexdigest(),XLS.name:hashlib.sha256(XLS.read_bytes()).hexdigest()},products=records)

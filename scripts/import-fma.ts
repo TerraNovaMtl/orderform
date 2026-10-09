@@ -42,7 +42,11 @@ for (const raw of manifest.products) {
     throw new Error("Published dealer price required");
   prepared.push({ raw, product, bytes, checksum: hash(JSON.stringify(raw)) });
 }
-if (new Set(prepared.map((p) => p.raw.source.excelRow)).size !== 31)
+if (
+  new Set(
+    prepared.flatMap((p) => p.raw.source.excelRows ?? [p.raw.source.excelRow]),
+  ).size !== 31
+)
   throw new Error("Missing source rows");
 const url = args.includes("--test")
   ? process.env.DATABASE_URL_TEST
@@ -71,7 +75,13 @@ try {
       "Existing import differs or was archived; review updates explicitly: " +
         conflicts.map((p) => p.raw.key).join(", "),
     );
+  const retired = mappings.filter((m) => !keys.has(m.product_key));
+  if (retired.length && !args.includes("--retire-missing"))
+    throw new Error(
+      "Explicit --retire-missing required to consolidate old selections",
+    );
   const report = {
+    retiredProducts: retired.length,
     mode: apply ? "apply" : "dry-run",
     importedStatus: publish ? "available" : "hidden",
     target: args.includes("--test") ? "test" : "configured database",
@@ -128,6 +138,13 @@ try {
     });
     await sql.begin(async (tx) => {
       await tx`select pg_advisory_xact_lock(872391101)`;
+      for (const old of retired) {
+        const [row] =
+          await tx`update terranova.products set archived=true,version=version+1,updated_at=now() where id=${old.product_id} and version=${old.version} returning id`;
+        if (!row) throw new Error("Product changed during consolidation");
+        await tx`delete from terranova.catalog_imports where catalog_key=${manifest.catalogKey} and product_key=${old.product_key}`;
+        await tx`insert into terranova.audit_events (actor,action,entity_id,details) values ('fma-import','catalog.product.consolidated',${row.id},${tx.json({ key: old.product_key })})`;
+      }
       for (const { raw, product: p, bytes, checksum } of prepared) {
         const [old] =
           await tx`select * from terranova.catalog_imports where catalog_key=${manifest.catalogKey} and product_key=${raw.key}`;

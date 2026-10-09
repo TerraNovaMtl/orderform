@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import pages from "@/lib/fma-pages.json";
 import { dealerPrice, moneyFormat, type Product } from "@/lib/domain";
+import { Modal } from "./shared";
 
 export function PdfCatalog({
   products,
@@ -18,6 +19,7 @@ export function PdfCatalog({
 }) {
   const [message, setMessage] = useState("");
   const [pageNumber, setPageNumber] = useState(1);
+  const [choices, setChoices] = useState<Product[] | null>(null);
   useEffect(() => {
     setPageNumber(1);
     setMessage("");
@@ -55,8 +57,9 @@ export function PdfCatalog({
         <h3>Click the catalogue to order</h3>
         <ol>
           <li>
-            <strong>Choose an item or colour.</strong> Click its picture to add
-            one pack or case to your cart.
+            <strong>Click anywhere on the page.</strong> Add one assorted pack
+            or case to your cart. Colours and styles are selected by the
+            shipper. Choose Twin or Queen for comforters.
           </li>
           <li>
             <strong>Need more?</strong> Click it again to add another pack or
@@ -145,7 +148,7 @@ export function PdfCatalog({
                   height={page.height}
                   style={{ display: "block", width: "100%", height: "auto" }}
                 />
-                {regions.map(({ key, bounds, product }) => (
+                {regions.slice(0, 1).map(({ key, bounds, product }) => (
                   <button
                     key={key}
                     type="button"
@@ -173,9 +176,17 @@ export function PdfCatalog({
                       product.status !== "available" ||
                       qty[product.id] >= 100000
                     }
-                    aria-label={`Add ${product.name} to cart`}
+                    aria-label={
+                      regions.length > 1
+                        ? "Choose Twin or Queen comforter"
+                        : `Add ${product.name} to cart`
+                    }
                     title={`${product.name} · ${moneyFormat(dealerPrice(product))} per unit · ${product.unitsPerOrder} ${product.unitLabel} per ${product.orderUnit}`}
-                    onClick={() => select(product)}
+                    onClick={() =>
+                      regions.length > 1
+                        ? setChoices(regions.map((r) => r.product))
+                        : select(product)
+                    }
                   >
                     {qty[product.id] > 0 && (
                       <span>
@@ -244,6 +255,25 @@ export function PdfCatalog({
           </section>
         );
       })}
+      {choices && (
+        <Modal title="Choose comforter size" onClose={() => setChoices(null)}>
+          <div className="actions">
+            {choices.map((p) => (
+              <button
+                key={p.id}
+                disabled={p.status !== "available"}
+                onClick={() => {
+                  select(p);
+                  setChoices(null);
+                }}
+              >
+                {p.catalogKey === "row-19" ? "Twin" : "Queen"} ·{" "}
+                {moneyFormat(dealerPrice(p) * p.unitsPerOrder)} per case
+              </button>
+            ))}
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

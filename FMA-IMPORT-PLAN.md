@@ -222,3 +222,9 @@ The workbook also has **customer PO/reference** and **phone**, neither of which 
 ## Updated PDF review - October 8, 2026
 
 The current source is `data/Terra_Nova_FMA_Products_2026.pdf`; the original spaced filename remains as historical evidence. All 27 pages were compared by rendered pixels as well as extracted text. Only pages 1 and 2 changed: the cover is now portrait, and the sweater footer SKU is corrected from 6872209 to 6872709. All ten Northern Trek style records retain their existing product keys, prices, 36-item pack quantities and mapping rectangles. Pages 3-27 render identically. Historical order SKU snapshots remain unchanged.
+
+## Assorted page ordering - October 9, 2026
+
+The user superseded individual colour and style selection. The current manifest contains 27 products covering 26 product pages: one shipper-selected assortment per page, with Twin and Queen remaining separate on page 11. Every product page uses a whole-image click area. Page 2 orders one assorted 36-item sweater pack; page 13 orders one assorted four-set quilt case. The five quilt identifiers remain source metadata and a combined SKU string. All 31 Excel source rows remain reconciled via `source.excelRows` for the consolidated quilt page.
+
+Local/test consolidation was applied and verified: 84 former colour/style products archived, 14 new assorted products added, two existing records updated, and 11 retained. Historical order lines remain unchanged. Production dry run matches these counts. Deploy the matching whole-page UI before applying production consolidation using `scripts/import-fma.ts --update --retire-missing --apply --publish`; run `scripts/verify-fma.ts` afterward. Do not use the obsolete 97-product verification counts for the consolidated catalogue.

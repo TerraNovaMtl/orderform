@@ -556,7 +556,7 @@ export function Admin() {
                 <table>
                   <thead>
                     <tr>
-                      <th>Company / agent code</th>
+                      <th>Company / agent</th>
                       <th>Store</th>
                       <th>Contact</th>
                       <th>Email</th>
@@ -569,6 +569,10 @@ export function Admin() {
                         match(
                           s.company,
                           s.vendorCode,
+                          data.agents.find((a) => a.code === s.vendorCode)
+                            ?.firstName ?? "",
+                          data.agents.find((a) => a.code === s.vendorCode)
+                            ?.lastName ?? "",
                           s.storeCode,
                           s.firstName,
                           s.lastName,
@@ -579,7 +583,13 @@ export function Admin() {
                         <tr key={s.id}>
                           <td>
                             {s.company}
-                            <small>{s.vendorCode}</small>
+                            <small>
+                              {data.agents
+                                .filter((a) => a.code === s.vendorCode)
+                                .map((a) => `${a.firstName} ${a.lastName}`)
+                                .join("") || "Unknown agent"}{" "}
+                              ({s.vendorCode})
+                            </small>
                           </td>
                           <td>{s.storeCode}</td>
                           <td>

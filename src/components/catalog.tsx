@@ -37,6 +37,7 @@ export function Catalog({ code }: { code: string }) {
     [receipt, setReceipt] = useState<Order | null>(null),
     [search, setSearch] = useState(""),
     [lightbox, setLightbox] = useState<Product | null>(null);
+  const [hiddenCategories, setHiddenCategories] = useState<string[]>([]);
   const draftKey = `tn-draft-${code.toUpperCase()}`;
   useEffect(() => {
     let active = true;
@@ -345,8 +346,14 @@ export function Catalog({ code }: { code: string }) {
         </section>
       </main>
     );
-  const shown = products.filter((p) =>
-    `${t(p.name)} ${p.sku} ${p.category} ${p.style}`
+  const availableCategories = [
+    ...new Set(products.map((p) => p.category)),
+  ].sort();
+  const categoryProducts = products.filter(
+    (p) => !hiddenCategories.includes(p.category),
+  );
+  const shown = categoryProducts.filter((p) =>
+    `${t(p.name)} ${p.sku} ${t(p.category)} ${p.style}`
       .toLowerCase()
       .includes(search.toLowerCase()),
   );
@@ -461,17 +468,54 @@ export function Catalog({ code }: { code: string }) {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
+          <fieldset className="catalog-category-filter">
+            <legend>{t("Browse by category")}</legend>
+            <div className="catalog-category-actions">
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => setHiddenCategories([])}
+              >
+                {t("Select all")}
+              </button>
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => setHiddenCategories(availableCategories)}
+              >
+                {t("Clear all")}
+              </button>
+            </div>
+            <div className="catalog-category-options">
+              {availableCategories.map((category) => (
+                <label key={category}>
+                  <input
+                    type="checkbox"
+                    checked={!hiddenCategories.includes(category)}
+                    onChange={(e) =>
+                      setHiddenCategories((current) =>
+                        e.target.checked
+                          ? current.filter((value) => value !== category)
+                          : [...current, category],
+                      )
+                    }
+                  />
+                  {t(category)}
+                </label>
+              ))}
+            </div>
+          </fieldset>
           {!shown.length && (
             <div className="empty">
               {products.length
-                ? t("No products match your search.")
+                ? t("No products match your search or selected categories.")
                 : t(
                     "Your agent’s catalog is being prepared. Please contact your vendor.",
                   )}
             </div>
           )}
           <PdfCatalog
-            products={products}
+            products={categoryProducts}
             search={search}
             qty={qty}
             controls={cartControl}
@@ -488,7 +532,7 @@ export function Catalog({ code }: { code: string }) {
           {categories.map((category) => (
             <section className="category card" key={category}>
               <h2>
-                {category}
+                {t(category)}
                 <span>
                   {tableProducts.filter((p) => p.category === category).length}{" "}
                   products

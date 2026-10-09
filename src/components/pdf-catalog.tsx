@@ -31,7 +31,7 @@ export function PdfCatalog({
   );
   if (!byKey.size) return null;
   const matches = (p: Product) =>
-    `${t(p.name)} ${p.sku} ${p.category} ${p.style}`
+    `${t(p.name)} ${p.sku} ${t(p.category)} ${p.style}`
       .toLowerCase()
       .includes(search.toLowerCase());
   const visiblePages = pages.filter(
@@ -234,7 +234,7 @@ export function PdfCatalog({
                 </select>
                 <span>
                   {t("of")} {pages.length}
-                  {search ? ` · ${visiblePages.length} matching pages` : ""}
+                  {` · ${visiblePages.length} ${t("visible pages")}`}
                 </span>
               </label>
             </nav>

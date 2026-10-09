@@ -140,6 +140,9 @@ export function PdfCatalog({
                   →
                 </span>
               </button>
+              {regions.length > 0 && (
+                <div className="pdf-add-hint">Click image to add to cart</div>
+              )}
               <div
                 className="pdf-page-sheet"
                 style={{

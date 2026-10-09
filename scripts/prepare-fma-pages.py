@@ -1,5 +1,6 @@
 """Render intact source pages and stable product-key hit areas, without database writes."""
-import json,sys
+import json,sys,shutil
+from PIL import Image
 from pathlib import Path
 import pdfplumber
 ROOT = Path(__file__).resolve().parents[1]
@@ -15,6 +16,13 @@ def hit_area(product):
 with pdfplumber.open(ROOT/'data/Terra_Nova_FMA_Products_2026.pdf') as pdf:
     for number, page in enumerate(pdf.pages, 1):
         filename = f'page-{number:02d}.png'
+        cover = ROOT/'data/Terra Nova Canadian Living Collection Header .png'
+        if number == 1 and cover.exists():
+            shutil.copyfile(cover, out/filename)
+            with Image.open(cover) as image:
+                width, height = image.size
+            pages.append(dict(number=number, image=f'/images/fma-pages/{filename}', width=width, height=height, regions=[]))
+            continue
         if (not (out/filename).exists() or ('--map-only' not in sys.argv and (selected_pages is None or number in selected_pages))):
             page.to_image(resolution=300, antialias=True).original.convert('RGB').save(out/filename, optimize=True)
         regions = [dict(key=p['key'], color=p['source']['color'], bounds=hit_area(p)) for p in manifest['products'] if p['source']['pdfPage']==number]

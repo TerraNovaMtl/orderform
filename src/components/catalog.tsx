@@ -11,7 +11,8 @@ import {
   type Order,
 } from "@/lib/domain";
 import { Modal, OrderReceipt, request } from "./shared";
-import { PdfCatalog } from "./pdf-catalog";
+import { hasUploadedPage } from "@/lib/catalog-pages";
+import { CatalogInstructions, PdfCatalog } from "./pdf-catalog";
 export function Catalog({ code }: { code: string }) {
   const { t, money } = useLanguage();
   const [agent, setAgent] = useState<Agent | null>(null),
@@ -357,7 +358,9 @@ export function Catalog({ code }: { code: string }) {
       .toLowerCase()
       .includes(search.toLowerCase()),
   );
-  const tableProducts = shown.filter((p) => !p.catalogKey);
+  const tableProducts = shown.filter(
+    (p) => !p.catalogKey && !hasUploadedPage(p),
+  );
   const categories = [...new Set(tableProducts.map((p) => p.category))];
   // Lightbox steps through products in the order the catalog displays them.
   const ordered = categories.flatMap((category) =>
@@ -468,67 +471,95 @@ export function Catalog({ code }: { code: string }) {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <fieldset className="catalog-category-filter">
-            <legend>{t("Browse by category")}</legend>
-            <div className="catalog-category-actions">
-              <button
-                type="button"
-                className="text-button"
-                onClick={() => setHiddenCategories([])}
-              >
-                {t("Select all")}
-              </button>
-              <button
-                type="button"
-                className="text-button"
-                onClick={() => setHiddenCategories(availableCategories)}
-              >
-                {t("Clear all")}
-              </button>
+          <div className="catalog-view-frame">
+            <CatalogInstructions />
+            <div className="catalog-view-toolbar">
+              <details className="catalog-category-dropdown">
+                <summary>
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M4 6h16M7 12h10M10 18h4" />
+                  </svg>
+                  {t("Categories")}
+                </summary>
+                <fieldset className="catalog-category-filter">
+                  <legend>{t("Browse by category")}</legend>
+                  <div className="catalog-category-actions">
+                    <button
+                      type="button"
+                      className="text-button"
+                      onClick={() => setHiddenCategories([])}
+                    >
+                      {t("Select all")}
+                    </button>
+                    <button
+                      type="button"
+                      className="text-button"
+                      onClick={() => setHiddenCategories(availableCategories)}
+                    >
+                      {t("Clear all")}
+                    </button>
+                  </div>
+                  <div className="catalog-category-options">
+                    {availableCategories.map((category) => (
+                      <label key={category}>
+                        <input
+                          type="checkbox"
+                          checked={!hiddenCategories.includes(category)}
+                          onChange={(e) =>
+                            setHiddenCategories((current) =>
+                              e.target.checked
+                                ? current.filter((value) => value !== category)
+                                : [...current, category],
+                            )
+                          }
+                        />
+                        {t(category)}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              </details>
             </div>
-            <div className="catalog-category-options">
-              {availableCategories.map((category) => (
-                <label key={category}>
-                  <input
-                    type="checkbox"
-                    checked={!hiddenCategories.includes(category)}
-                    onChange={(e) =>
-                      setHiddenCategories((current) =>
-                        e.target.checked
-                          ? current.filter((value) => value !== category)
-                          : [...current, category],
-                      )
-                    }
-                  />
-                  {t(category)}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-          {!shown.length && (
-            <div className="empty">
-              {products.length
-                ? t("No products match your search or selected categories.")
-                : t(
-                    "Your agent’s catalog is being prepared. Please contact your vendor.",
-                  )}
-            </div>
-          )}
-          <PdfCatalog
-            products={categoryProducts}
-            search={search}
-            qty={qty}
-            controls={cartControl}
-            add={(p) =>
-              setQty((current) => ({
-                ...current,
-                [p.id]: Math.min(
-                  100000,
-                  current[p.id] > 0 ? current[p.id] + 1 : (p.minimumOrder ?? 1),
-                ),
-              }))
-            }
-          />
+            {!shown.length && (
+              <div className="empty">
+                {products.length
+                  ? t("No products match your search or selected categories.")
+                  : t(
+                      "Your agent’s catalog is being prepared. Please contact your vendor.",
+                    )}
+              </div>
+            )}
+            <PdfCatalog
+              products={categoryProducts}
+              allProducts={products}
+              categoryFilterActive={availableCategories.some((category) =>
+                hiddenCategories.includes(category),
+              )}
+              search={search}
+              qty={qty}
+              controls={cartControl}
+              add={(p) =>
+                setQty((current) => ({
+                  ...current,
+                  [p.id]: Math.min(
+                    100000,
+                    current[p.id] > 0
+                      ? current[p.id] + 1
+                      : (p.minimumOrder ?? 1),
+                  ),
+                }))
+              }
+            />
+          </div>
           {categories.map((category) => (
             <section className="category card" key={category}>
               <h2>

@@ -1,24 +1,32 @@
 "use client";
 import { useLanguage } from "./language";
 import { useEffect, useState } from "react";
-import pages from "@/lib/fma-pages.json";
+import { catalogPages, hasUploadedPage } from "@/lib/catalog-pages";
 import { dealerPrice, type Product } from "@/lib/domain";
 import { Modal } from "./shared";
 
 export function PdfCatalog({
   products,
+  allProducts,
+  categoryFilterActive,
   search,
   qty,
   add,
   controls,
 }: {
   products: Product[];
+  allProducts: Product[];
+  categoryFilterActive: boolean;
   search: string;
   qty: Record<string, number>;
   add: (product: Product) => void;
   controls: (product: Product) => React.ReactNode;
 }) {
   const { t, money: moneyFormat } = useLanguage();
+  const pages = catalogPages(allProducts);
+  const [imageSizes, setImageSizes] = useState<
+    Record<string, { width: number; height: number }>
+  >({});
   const [message, setMessage] = useState<Product | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [choices, setChoices] = useState<Product[] | null>(null);
@@ -27,7 +35,9 @@ export function PdfCatalog({
     setMessage(null);
   }, [search]);
   const byKey = new Map(
-    products.filter((p) => p.catalogKey).map((p) => [p.catalogKey, p]),
+    products
+      .filter((p) => p.catalogKey || hasUploadedPage(p))
+      .map((p) => [p.catalogKey || p.id, p]),
   );
   if (!byKey.size) return null;
   const matches = (p: Product) =>
@@ -36,6 +46,7 @@ export function PdfCatalog({
       .includes(search.toLowerCase());
   const visiblePages = pages.filter(
     (page) =>
+      (!categoryFilterActive || page.regions.length > 0) &&
       (!page.regions.length || page.regions.some((r) => byKey.has(r.key))) &&
       (!search ||
         page.regions.some((r) => {
@@ -55,31 +66,13 @@ export function PdfCatalog({
   }
   return (
     <div className="pdf-catalog">
-      <aside className="catalog-help" aria-label={t("How to order")}>
-        <h3>{t("Click the catalogue to order")}</h3>
-        <ol>
-          <li>
-            <strong>{t("Click anywhere on the page.")}</strong>
-            {t(
-              "Add one assorted pack or case to your cart. Colours and styles are selected by the shipper. Choose Twin or Queen for comforters.",
-            )}
-          </li>
-          <li>
-            <strong>{t("Need more?")}</strong>
-            {t("Click it again to add another pack or case.")}
-          </li>
-          <li>
-            <strong>{t("Browse the catalogue.")}</strong>
-            {t("Use the left and right arrows to turn pages.")}
-          </li>
-        </ol>
-      </aside>
       {message && (
         <p role="status" className="pdf-cart-feedback">
           {t(message.name)} {t("added to your cart.")}
         </p>
       )}
-      {(currentPage ? [currentPage] : []).map((page) => {
+      {(currentPage ? [currentPage] : []).map((sourcePage) => {
+        const page = { ...sourcePage, ...imageSizes[sourcePage.image] };
         const regions = page.regions.flatMap((region) => {
           const product = byKey.get(region.key);
           return product ? [{ ...region, product }] : [];
@@ -161,6 +154,15 @@ export function PdfCatalog({
                   src={page.image}
                   alt={`Original Terra Nova catalogue page ${page.number}`}
                   loading="lazy"
+                  onLoad={(e) => {
+                    const { naturalWidth: width, naturalHeight: height } =
+                      e.currentTarget;
+                    if (width && height)
+                      setImageSizes((current) => ({
+                        ...current,
+                        [page.image]: { width, height },
+                      }));
+                  }}
                   width={page.width}
                   height={page.height}
                   style={{ display: "block", width: "100%", height: "auto" }}
@@ -296,5 +298,28 @@ export function PdfCatalog({
         </Modal>
       )}
     </div>
+  );
+}
+
+export function CatalogInstructions() {
+  const { t } = useLanguage();
+  return (
+    <aside className="catalog-help" aria-label={t("How to order")}>
+      <h3>{t("Click the catalogue to order")}</h3>
+      <ol>
+        <li>
+          <strong>{t("Click anywhere on the page.")}</strong>
+          {t("Order by the case.")}
+        </li>
+        <li>
+          <strong>{t("Need more?")}</strong>
+          {t("Click it again to add another pack or case.")}
+        </li>
+        <li>
+          <strong>{t("Browse the catalogue.")}</strong>
+          {t("Use the left and right arrows to turn pages.")}
+        </li>
+      </ol>
+    </aside>
   );
 }

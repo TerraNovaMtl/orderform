@@ -1107,7 +1107,7 @@ export function Admin() {
                 </div>
               </fieldset>
               <label className="span-2">
-                Product image (PNG, JPEG, WebP or GIF, up to 2 MB)
+                Product page image (PNG, JPEG, WebP or GIF, up to 2 MB)
                 <input
                   type="file"
                   accept="image/png,image/jpeg,image/webp,image/gif"
@@ -1117,6 +1117,10 @@ export function Admin() {
                   }}
                 />
               </label>
+              <p className="muted span-2">
+                New product pages use the entire uploaded image as the clickable
+                area to add one ordering pack or case to the cart.
+              </p>
               {product.image && (
                 <img
                   className="edit-image"

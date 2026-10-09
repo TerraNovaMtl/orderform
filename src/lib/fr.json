@@ -64,7 +64,6 @@
   "How to order": "Comment commander",
   "Click the catalogue to order": "Cliquez sur le catalogue pour commander",
   "Click anywhere on the page.": "Cliquez n’importe où sur la page.",
-  "Add one assorted pack or case to your cart. Colours and styles are selected by the shipper. Choose Twin or Queen for comforters.": "Ajoutez un paquet ou une caisse assortie au panier. Les couleurs et modèles sont choisis par l’expéditeur. Choisissez Simple ou Grand pour les ensembles de couette.",
   "Need more?": "Besoin de plus ?",
   "Click it again to add another pack or case.": "Cliquez de nouveau pour ajouter un autre paquet ou une autre caisse.",
   "Browse the catalogue.": "Parcourez le catalogue.",
@@ -171,5 +170,7 @@
   "Home - Bedding": "Maison – Literie",
   "Home": "Maison",
   "Ladies Apparel": "Vêtements pour femmes",
-  "Outdoor": "Plein air"
+  "Outdoor": "Plein air",
+  "Categories": "Catégories",
+  "Order by the case.": "Commandez à la caisse."
 }

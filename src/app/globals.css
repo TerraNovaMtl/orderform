@@ -1062,8 +1062,41 @@ dialog::backdrop {
   border-top: 1px solid var(--line);
 }
 .pdf-turn {
-  font-size: 22px;
-  min-width: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 76px;
+  min-height: 52px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--navy);
+  color: white;
+  border: 1px solid var(--navy);
+  box-shadow: 0 3px 8px rgba(35, 62, 80, 0.18);
+}
+.pdf-turn-arrow {
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1;
+}
+.pdf-turn:hover:not(:disabled) {
+  background: #31576d;
+  color: white;
+}
+.pdf-turn:disabled {
+  opacity: 0.35;
+  box-shadow: none;
+}
+@media (max-width: 700px) {
+  .pdf-turn {
+    min-width: 52px;
+    gap: 3px;
+    font-size: 10px;
+  }
+  .pdf-turn-arrow {
+    font-size: 22px;
+  }
 }
 .pdf-reader-stage {
   background: #f4f3ef;

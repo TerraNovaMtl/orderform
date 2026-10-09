@@ -91,7 +91,10 @@ export function PdfCatalog({
           >
             <div
               className="pdf-reader-stage"
-              style={{ position: "relative", padding: "0 48px" }}
+              style={{
+                position: "relative",
+                padding: "0 clamp(64px, 8vw, 94px)",
+              }}
             >
               <button
                 type="button"
@@ -107,10 +110,13 @@ export function PdfCatalog({
                   top: "50%",
                   transform: "translateY(-50%)",
                   zIndex: 2,
-                  padding: "12px 8px",
+                  padding: "12px 6px",
                 }}
               >
-                ←
+                <span className="pdf-turn-arrow" aria-hidden="true">
+                  ←
+                </span>
+                <span>Back</span>
               </button>
               <button
                 type="button"
@@ -126,10 +132,13 @@ export function PdfCatalog({
                   top: "50%",
                   transform: "translateY(-50%)",
                   zIndex: 2,
-                  padding: "12px 8px",
+                  padding: "12px 6px",
                 }}
               >
-                →
+                <span>Next</span>
+                <span className="pdf-turn-arrow" aria-hidden="true">
+                  →
+                </span>
               </button>
               <div
                 className="pdf-page-sheet"

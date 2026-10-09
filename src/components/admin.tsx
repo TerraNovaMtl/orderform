@@ -1,4 +1,5 @@
 "use client";
+import { CategoryFilter } from "./category-filter";
 import { useEffect, useState } from "react";
 import {
   type Category,
@@ -51,6 +52,9 @@ export function Admin() {
     [busy, setBusy] = useState(false),
     [notice, setNotice] = useState(""),
     [cancelled, setCancelled] = useState(false);
+  const [hiddenProductCategories, setHiddenProductCategories] = useState<
+    string[]
+  >([]);
   const [category, setCategory] = useState<{
     id?: string;
     version?: number;
@@ -143,6 +147,11 @@ export function Admin() {
       };
     });
   }
+  const filteredProducts = (data?.products ?? []).filter(
+    (p) =>
+      !hiddenProductCategories.includes(p.category) &&
+      match(p.name, p.sku, p.category),
+  );
   const modalError = error && (
     <p className="error" role="alert">
       {error}
@@ -357,6 +366,13 @@ export function Admin() {
                   + Add product
                 </button>
               </div>
+              <div className="catalog-view-toolbar">
+                <CategoryFilter
+                  categories={data.categories.map((c) => c.nameEn)}
+                  excluded={hiddenProductCategories}
+                  onChange={setHiddenProductCategories}
+                />
+              </div>
               <div className="card table-scroll">
                 <table>
                   <thead>
@@ -370,57 +386,57 @@ export function Admin() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.products
-                      .filter((p) => match(p.name, p.sku, p.category))
-                      .map((p) => (
-                        <tr key={p.id}>
-                          <td>
-                            <div className="product-info">
-                              <img
-                                src={p.image || "/images/image1.png"}
-                                alt=""
-                              />
-                              <div>
-                                <strong>{p.name}</strong>
-                                <small>
-                                  {p.sku} · {p.unitsPerOrder} {p.unitLabel}/
-                                  {p.orderUnit}
-                                </small>
-                              </div>
+                    {filteredProducts.map((p) => (
+                      <tr key={p.id}>
+                        <td>
+                          <div className="product-info">
+                            <img src={p.image || "/images/image1.png"} alt="" />
+                            <div>
+                              <strong>{p.name}</strong>
+                              <small>
+                                {p.sku} · {p.unitsPerOrder} {p.unitLabel}/
+                                {p.orderUnit}
+                              </small>
                             </div>
-                          </td>
-                          <td>{p.category}</td>
-                          <td>
-                            {p.cost == null ? "—" : money(p.cost)} /{" "}
-                            {money(dealerPrice(p))} / {money(p.srp)}
-                          </td>
-                          <td>
-                            <span
-                              className={`badge ${p.status === "available" ? "green" : ""}`}
-                            >
-                              {p.status}
-                            </span>
-                          </td>
-                          <td>
-                            {p.agentCodes.length
-                              ? p.agentCodes.join(", ")
-                              : "All agents"}
-                          </td>
-                          <td>
-                            <button
-                              className="secondary compact"
-                              onClick={() => {
-                                setError("");
-                                setProduct({ ...p });
-                              }}
-                            >
-                              Edit
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                          </div>
+                        </td>
+                        <td>{p.category}</td>
+                        <td>
+                          {p.cost == null ? "—" : money(p.cost)} /{" "}
+                          {money(dealerPrice(p))} / {money(p.srp)}
+                        </td>
+                        <td>
+                          <span
+                            className={`badge ${p.status === "available" ? "green" : ""}`}
+                          >
+                            {p.status}
+                          </span>
+                        </td>
+                        <td>
+                          {p.agentCodes.length
+                            ? p.agentCodes.join(", ")
+                            : "All agents"}
+                        </td>
+                        <td>
+                          <button
+                            className="secondary compact"
+                            onClick={() => {
+                              setError("");
+                              setProduct({ ...p });
+                            }}
+                          >
+                            Edit
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
+                {data.products.length > 0 && !filteredProducts.length && (
+                  <p className="empty">
+                    No products match your search or selected categories.
+                  </p>
+                )}
                 {!data.products.length && (
                   <p className="empty">
                     No products yet. Add a product or import your sheet export.

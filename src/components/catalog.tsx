@@ -1,4 +1,5 @@
 "use client";
+import { CategoryFilter } from "./category-filter";
 import { useLanguage } from "./language";
 import { useEffect, useState } from "react";
 import {
@@ -499,60 +500,11 @@ export function Catalog({
           <div className="catalog-view-frame">
             <CatalogInstructions />
             <div className="catalog-view-toolbar">
-              <details className="catalog-category-dropdown">
-                <summary>
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M4 6h16M7 12h10M10 18h4" />
-                  </svg>
-                  {t("Categories")}
-                </summary>
-                <fieldset className="catalog-category-filter">
-                  <legend>{t("Browse by category")}</legend>
-                  <div className="catalog-category-actions">
-                    <button
-                      type="button"
-                      className="text-button"
-                      onClick={() => setHiddenCategories([])}
-                    >
-                      {t("Select all")}
-                    </button>
-                    <button
-                      type="button"
-                      className="text-button"
-                      onClick={() => setHiddenCategories(availableCategories)}
-                    >
-                      {t("Clear all")}
-                    </button>
-                  </div>
-                  <div className="catalog-category-options">
-                    {availableCategories.map((category) => (
-                      <label key={category}>
-                        <input
-                          type="checkbox"
-                          checked={!hiddenCategories.includes(category)}
-                          onChange={(e) =>
-                            setHiddenCategories((current) =>
-                              e.target.checked
-                                ? current.filter((value) => value !== category)
-                                : [...current, category],
-                            )
-                          }
-                        />
-                        {t(category)}
-                      </label>
-                    ))}
-                  </div>
-                </fieldset>
-              </details>
+              <CategoryFilter
+                categories={availableCategories}
+                excluded={hiddenCategories}
+                onChange={setHiddenCategories}
+              />
             </div>
             {!shown.length && (
               <div className="empty">

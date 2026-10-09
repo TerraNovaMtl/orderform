@@ -6,10 +6,14 @@ const LanguageContext = createContext({
   language: "en" as Language,
   t: (text: string) => text,
   setLanguage: (_language: Language) => {},
+  setCategoryTranslations: (_translations: Record<string, string>) => {},
   money: (value: number) => "$" + value.toFixed(2),
 });
 export const useLanguage = () => useContext(LanguageContext);
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
+  const [categoryTranslations, setCategoryTranslations] = useState<
+    Record<string, string>
+  >({});
   const [language, setLanguage] = useState<Language>("en");
   useEffect(() => {
     try {
@@ -27,7 +31,9 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   }
   const t = (text: string) =>
     language === "fr"
-      ? ((french as Record<string, string>)[text] ?? text)
+      ? (categoryTranslations[text] ??
+        (french as Record<string, string>)[text] ??
+        text)
       : text;
   return (
     <LanguageContext.Provider
@@ -35,6 +41,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
         language,
         t,
         setLanguage: change,
+        setCategoryTranslations,
         money: (value: number) =>
           language === "fr"
             ? new Intl.NumberFormat("fr-CA", {

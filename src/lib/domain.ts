@@ -218,3 +218,15 @@ export function csvCell(value: unknown) {
     '"' + (/^[\s]*[=+\-@]/.test(s) ? "'" : "") + s.replaceAll('"', '""') + '"'
   );
 }
+
+export const categorySchema = z.object({
+  id: z.uuid().optional(),
+  version: z.number().int().positive().optional(),
+  nameEn: text(100).min(1),
+  nameFr: text(100).min(1),
+});
+export type Category = z.infer<typeof categorySchema> & {
+  id: string;
+  version: number;
+  productCount: number;
+};

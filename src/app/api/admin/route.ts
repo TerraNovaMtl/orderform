@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { adminEmail } from "@/lib/auth";
 import {
+  listCategories,
+  saveCategory,
+  deleteCategory,
   listProducts,
   listCompanies,
   saveCompany,
@@ -25,16 +28,32 @@ export async function GET() {
   try {
     if (!(await adminEmail()))
       throw new AppError("Admin sign-in required", 401);
-    const [products, companies, agents, stores, orders, notifications] =
-      await Promise.all([
-        listProducts(),
-        listCompanies(),
-        listAgents(),
-        listStores(),
-        listOrders(),
-        db()`select state,count(*)::int as count from terranova.email_outbox group by state`,
-      ]);
-    return json({ products, companies, agents, stores, orders, notifications });
+    const [
+      products,
+      companies,
+      agents,
+      stores,
+      orders,
+      notifications,
+      categories,
+    ] = await Promise.all([
+      listProducts(),
+      listCompanies(),
+      listAgents(),
+      listStores(),
+      listOrders(),
+      db()`select state,count(*)::int as count from terranova.email_outbox group by state`,
+      listCategories(),
+    ]);
+    return json({
+      products,
+      companies,
+      agents,
+      stores,
+      orders,
+      notifications,
+      categories,
+    });
   } catch (e) {
     return errorResponse(e);
   }
@@ -46,6 +65,16 @@ export async function POST(req: Request) {
     const body = await readJson(req);
     let result;
     switch (body.action) {
+      case "deleteCategory":
+        result = await deleteCategory(
+          z.uuid().parse(body.id),
+          z.number().int().positive().parse(body.version),
+          actor,
+        );
+        break;
+      case "saveCategory":
+        result = await saveCategory(body.data, actor);
+        break;
       case "deleteCompany":
         result = await deleteCompany(z.uuid().parse(body.id), actor);
         break;

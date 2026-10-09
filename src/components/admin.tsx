@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import {
+  type Category,
   type Product,
   type Company,
   type ProductInput,
@@ -14,6 +15,7 @@ import {
 } from "@/lib/domain";
 import { Modal, OrderReceipt, request, exportOrder } from "./shared";
 type Data = {
+  categories: Category[];
   companies: Company[];
   products: Product[];
   agents: Agent[];
@@ -30,7 +32,7 @@ const blankProduct: ProductInput = {
   orderUnit: "unit",
   unitsPerOrder: 1,
   unitLabel: "units",
-  category: "Gift Novelties",
+  category: "",
   style: "",
   description: "",
   image: "",
@@ -41,14 +43,20 @@ type AgentInput = Omit<Agent, "id"> & { id?: string };
 type StoreInput = Omit<Store, "id"> & { id?: string };
 export function Admin() {
   const [data, setData] = useState<Data | null>(null),
-    [tab, setTab] = useState<"orders" | "products" | "agents" | "stores">(
-      "orders",
-    ),
+    [tab, setTab] = useState<
+      "orders" | "products" | "agents" | "stores" | "categories"
+    >("orders"),
     [search, setSearch] = useState(""),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [notice, setNotice] = useState(""),
     [cancelled, setCancelled] = useState(false);
+  const [category, setCategory] = useState<{
+    id?: string;
+    version?: number;
+    nameEn: string;
+    nameFr: string;
+  } | null>(null);
   const [product, setProduct] = useState<ProductInput | null>(null),
     [companyName, setCompanyName] = useState<string | null>(null),
     [agent, setAgent] = useState<AgentInput | null>(null),
@@ -68,6 +76,9 @@ export function Admin() {
   useEffect(() => {
     refresh().catch((e) => setError(e.message));
   }, []);
+  useEffect(() => {
+    if (tab === "categories") refresh().catch((e) => setError(e.message));
+  }, [tab]);
   async function mutate(body: unknown) {
     setBusy(true);
     setError("");
@@ -153,6 +164,7 @@ export function Admin() {
         </button>
       </div>
       {error &&
+        !category &&
         !product &&
         !agent &&
         !store &&
@@ -213,23 +225,29 @@ export function Admin() {
           )}
           <div className="toolbar">
             <nav className="tabs" aria-label="Admin sections">
-              {(["orders", "products", "agents", "stores"] as const).map(
-                (t) => (
-                  <button
-                    key={t}
-                    className={tab === t ? "active" : ""}
-                    onClick={() => {
-                      setTab(t);
-                      setSearch("");
-                      setError("");
-                    }}
-                  >
-                    {t === "agents"
-                      ? "Companies & agents"
-                      : t[0].toUpperCase() + t.slice(1)}
-                  </button>
-                ),
-              )}
+              {(
+                [
+                  "orders",
+                  "products",
+                  "categories",
+                  "agents",
+                  "stores",
+                ] as const
+              ).map((t) => (
+                <button
+                  key={t}
+                  className={tab === t ? "active" : ""}
+                  onClick={() => {
+                    setTab(t);
+                    setSearch("");
+                    setError("");
+                  }}
+                >
+                  {t === "agents"
+                    ? "Companies & agents"
+                    : t[0].toUpperCase() + t.slice(1)}
+                </button>
+              ))}
             </nav>
             <input
               aria-label={`Search ${tab}`}
@@ -238,6 +256,89 @@ export function Admin() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
+          {tab === "categories" && (
+            <>
+              <div className="list-heading">
+                <p className="muted">
+                  Manage category names in English and French. Renaming a
+                  category updates its products.
+                </p>
+                <button
+                  disabled={busy}
+                  onClick={() => {
+                    setError("");
+                    setCategory({ nameEn: "", nameFr: "" });
+                  }}
+                >
+                  + Add category
+                </button>
+              </div>
+              <div className="card table-scroll">
+                <table className="categories-table">
+                  <thead>
+                    <tr>
+                      <th>English</th>
+                      <th>French</th>
+                      <th title="Number of products assigned to this category, including archived products">
+                        Products
+                      </th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.categories
+                      .filter((c) => match(c.nameEn, c.nameFr))
+                      .map((c) => (
+                        <tr key={c.id}>
+                          <td>{c.nameEn}</td>
+                          <td>{c.nameFr}</td>
+                          <td>{c.productCount}</td>
+                          <td>
+                            <div className="category-row-actions">
+                              <button
+                                className="secondary compact"
+                                onClick={() => {
+                                  setError("");
+                                  setCategory(c);
+                                }}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                className="text-button danger agent-delete"
+                                disabled={busy || c.productCount > 0}
+                                aria-label={`Delete category ${c.nameEn}`}
+                                title={
+                                  c.productCount > 0
+                                    ? "Categories used by products cannot be deleted"
+                                    : "Delete category"
+                                }
+                                onClick={async () => {
+                                  if (confirm(`Delete category ${c.nameEn}?`))
+                                    await mutate({
+                                      action: "deleteCategory",
+                                      id: c.id,
+                                      version: c.version,
+                                    });
+                                }}
+                              >
+                                <TrashIcon />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+                {!data.categories.length && (
+                  <p className="empty">
+                    Add a category before creating products.
+                  </p>
+                )}
+              </div>
+            </>
+          )}
           {tab === "products" && (
             <>
               <div className="list-heading">
@@ -247,7 +348,10 @@ export function Admin() {
                 <button
                   onClick={() => {
                     setError("");
-                    setProduct({ ...blankProduct });
+                    setProduct({
+                      ...blankProduct,
+                      category: data.categories[0]?.nameEn ?? "",
+                    });
                   }}
                 >
                   + Add product
@@ -906,6 +1010,50 @@ export function Admin() {
           </div>
         </Modal>
       )}
+      {category && (
+        <Modal
+          title={category.id ? "Edit category" : "Add category"}
+          onClose={() => {
+            if (!busy) setCategory(null);
+          }}
+        >
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (await mutate({ action: "saveCategory", data: category }))
+                setCategory(null);
+            }}
+          >
+            {modalError}
+            <label>
+              English name
+              <input
+                required
+                maxLength={100}
+                value={category.nameEn}
+                onChange={(e) =>
+                  setCategory({ ...category, nameEn: e.target.value })
+                }
+              />
+            </label>
+            <label>
+              French name
+              <input
+                required
+                maxLength={100}
+                lang="fr"
+                value={category.nameFr}
+                onChange={(e) =>
+                  setCategory({ ...category, nameFr: e.target.value })
+                }
+              />
+            </label>
+            <button disabled={busy}>
+              {busy ? "Saving…" : "Save category"}
+            </button>
+          </form>
+        </Modal>
+      )}
       {product && (
         <Modal
           title={product.id ? "Edit product" : "Add product"}
@@ -933,7 +1081,7 @@ export function Admin() {
                   }
                 />
               </label>
-              {(["sku", "barcode", "category", "style"] as const).map((key) => (
+              {(["sku", "barcode", "style"] as const).map((key) => (
                 <label key={key}>
                   {
                     {
@@ -944,7 +1092,6 @@ export function Admin() {
                     }[key]
                   }
                   <input
-                    required={key === "category"}
                     value={product[key] ?? ""}
                     onChange={(e) =>
                       setProduct({ ...product, [key]: e.target.value })
@@ -952,6 +1099,25 @@ export function Admin() {
                   />
                 </label>
               ))}
+              <label>
+                Category
+                <select
+                  required
+                  value={product.category}
+                  onChange={(e) =>
+                    setProduct({ ...product, category: e.target.value })
+                  }
+                >
+                  <option value="" disabled>
+                    Select a category
+                  </option>
+                  {data?.categories.map((c) => (
+                    <option key={c.id} value={c.nameEn}>
+                      {c.nameEn}
+                    </option>
+                  ))}
+                </select>
+              </label>
               {(["cost", "srp"] as const).map((key) => (
                 <label key={key}>
                   {key === "cost" ? "Cost per unit" : "SRP per unit"}

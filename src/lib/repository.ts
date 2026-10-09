@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { orderReference } from "./order-reference";
 import { db, type Tx } from "./db";
 import {
+  categorySchema,
+  type Category,
   agentSchema,
   companySchema,
   type Company,
@@ -233,6 +235,10 @@ export async function listProducts(vendor?: string): Promise<Product[]> {
 export async function saveProduct(input: unknown, actor: string) {
   const p = productSchema.parse(input);
   return db().begin(async (tx) => {
+    const [category] =
+      await tx`select id from terranova.categories where name_en=${p.category} for share`;
+    if (!category)
+      throw new AppError("Choose a category from the category list");
     const agents = p.agentCodes.length
       ? await tx`select id,code from terranova.agents where code in ${tx(p.agentCodes)}`
       : [];
@@ -494,5 +500,67 @@ export async function editOrder(input: unknown, actor: string) {
       after: d,
     });
     return getOrder(d.id, tx);
+  });
+}
+
+export async function listCategories(): Promise<Category[]> {
+  const rows =
+    await db()`select c.*, (select count(*)::int from terranova.products p where p.category=c.name_en) as product_count from terranova.categories c order by name_en`;
+  return rows.map((r) => ({
+    id: r.id,
+    nameEn: r.name_en,
+    nameFr: r.name_fr,
+    version: r.version,
+    productCount: r.product_count,
+  }));
+}
+export async function saveCategory(input: unknown, actor: string) {
+  const category = categorySchema.parse(input);
+  return db().begin(async (tx) => {
+    const [duplicate] =
+      await tx`select id from terranova.categories where lower(name_en)=lower(${category.nameEn}) and id <> ${category.id ?? "00000000-0000-0000-0000-000000000000"}`;
+    if (duplicate)
+      throw new AppError("An English category with this name already exists");
+    if (category.id) {
+      const [previous] =
+        await tx`select * from terranova.categories where id=${category.id} for update`;
+      if (!previous || previous.version !== category.version)
+        throw new AppError("Category changed. Reload before saving.", 409);
+      await tx`update terranova.categories set name_en=${category.nameEn},name_fr=${category.nameFr},version=version+1 where id=${category.id}`;
+      if (previous.name_en !== category.nameEn)
+        await tx`update terranova.products set category=${category.nameEn}, version=version+1,updated_at=now() where category=${previous.name_en}`;
+      await audit(tx, actor, "category.saved", category.id);
+      return { id: category.id };
+    }
+    const [created] =
+      await tx`insert into terranova.categories (name_en,name_fr) values (${category.nameEn},${category.nameFr}) returning id`;
+    await audit(tx, actor, "category.saved", created.id);
+    return { id: created.id };
+  });
+}
+
+export async function deleteCategory(
+  id: string,
+  version: number,
+  actor: string,
+) {
+  await db().begin(async (tx) => {
+    const [category] =
+      await tx`select * from terranova.categories where id=${id} for update`;
+    if (!category) throw notFound();
+    if (category.version !== version)
+      throw new AppError("Category changed. Reload before deleting.", 409);
+    const [used] =
+      await tx`select id from terranova.products where category=${category.name_en} limit 1`;
+    if (used)
+      throw new AppError(
+        "This category is used by products. Reassign them before deleting it.",
+        409,
+      );
+    await tx`delete from terranova.categories where id=${id}`;
+    await audit(tx, actor, "category.deleted", id, {
+      nameEn: category.name_en,
+      nameFr: category.name_fr,
+    });
   });
 }

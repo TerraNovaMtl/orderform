@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { db } from "../src/lib/db";
 import {
+  saveCategory,
   saveAgent,
   saveStore,
   saveProduct,
@@ -28,6 +29,7 @@ test(
       actor = `test-${suffix}`;
     let productId = "";
     try {
+      await saveCategory({ nameEn: company, nameFr: company }, actor);
       await saveAgent(
         {
           company,
@@ -87,7 +89,7 @@ test(
         orderUnit: "case",
         unitsPerOrder: 6,
         unitLabel: "items",
-        category: "Test",
+        category: company,
         style: "",
         description: "",
         image: "",
@@ -285,6 +287,7 @@ test(
         await tx`delete from terranova.stores where agent_id in(select id from terranova.agents where code in (${code},${other}))`;
         await tx`delete from terranova.agents where code in (${code},${other})`;
         await tx`delete from terranova.companies where name=${company}`;
+        await tx`delete from terranova.categories where name_en=${company}`;
         await tx`delete from terranova.audit_events where actor=${actor}`;
       });
       await db().end();

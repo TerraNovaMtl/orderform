@@ -176,3 +176,7 @@ python3 scripts/prepare-fma-pages.py
 Commit `public/images/fma-pages/` and `src/lib/fma-pages.json` with the application. This presentation change requires no new database migration or product re-import.
 
 Northern Trek sweaters on PDF page 2 have ten separately orderable style packs (7271MNT, 7273MNT, 7270MNT, 7266MNT, 7267MNT, 7272MNT, 7268MNT, 7274MNT, 7269MNT, 7264MNT). Each contains 36 assorted items within that style, uses CT SKU 6872709, and totals $719.28 at the published $19.98 per unit. The original row-10 product now represents 7271MNT; nine new stable style keys identify the other packs. Historical order snapshots are retained.
+
+### Managed bilingual categories
+
+Migration `005_categories.sql` adds the category list and seeds existing product categories. Apply it to each database before deploying this version (`node --env-file=.env.local scripts/migrate.mjs --test` for development, or omit `--test` for production). Admins can add and edit both English and French names in the Categories tab. Products select a category from that list; renaming its English name updates linked products and their versions. Customer category filters use the saved French name when French is selected. Existing categories without a known French translation initially use their English name and can be edited by an admin.

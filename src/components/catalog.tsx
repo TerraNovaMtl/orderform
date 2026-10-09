@@ -5,6 +5,7 @@ import {
   productAmounts,
   dealerPrice,
   sumMoney,
+  type Category,
   type Agent,
   type Product,
   type Store,
@@ -20,7 +21,7 @@ export function Catalog({
   code: string;
   initialStoreCode?: string;
 }) {
-  const { t, money } = useLanguage();
+  const { t, money, setCategoryTranslations } = useLanguage();
   const [agent, setAgent] = useState<Agent | null>(null),
     [products, setProducts] = useState<Product[]>([]),
     [loading, setLoading] = useState(true),
@@ -48,7 +49,7 @@ export function Catalog({
   const draftKey = `tn-draft-${code.toUpperCase()}`;
   useEffect(() => {
     let active = true;
-    request<{ agent: Agent; products: Product[] }>(
+    request<{ agent: Agent; products: Product[]; categories: Category[] }>(
       `/api/catalog?vendor=${encodeURIComponent(code)}`,
     )
       .then(async (d) => {
@@ -64,6 +65,9 @@ export function Catalog({
             setStoreCode(initialStoreCode);
             setStore(selected?.store ?? null);
           }
+          setCategoryTranslations(
+            Object.fromEntries(d.categories.map((c) => [c.nameEn, c.nameFr])),
+          );
           setAgent(d.agent);
           setProducts(d.products);
         }
@@ -94,7 +98,7 @@ export function Catalog({
     return () => {
       active = false;
     };
-  }, [code, draftKey, initialStoreCode]);
+  }, [code, draftKey, initialStoreCode, setCategoryTranslations]);
   const lines = products
     .filter((p) => qty[p.id] > 0)
     .map((p) => ({

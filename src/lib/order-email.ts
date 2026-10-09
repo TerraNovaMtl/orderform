@@ -19,7 +19,7 @@ export function renderOrderEmail(order: Order) {
 <table role="presentation" width="640" cellspacing="0" cellpadding="0" align="center" style="width:100%;max-width:640px;background:#ffffff;border:1px solid #dce2de;"><tr><td style="padding:24px;">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td valign="middle"><img src="cid:terra-nova-logo" alt="Terra Nova" width="190" height="63" style="display:block;width:190px;height:63px;"></td><td align="right" valign="middle">${companyLogo}</td></tr></table>
 <h1 style="margin:22px 0 8px;font-size:22px;line-height:1.4;">Order confirmation</h1>
-<p style="margin:0 0 16px;font-size:13px;color:#697772;">${esc(order.reference)}</p>
+<p style="margin:0 0 16px;font-size:13px;color:#697772;">${esc(order.reference)}<br>${esc(new Date(order.date).toLocaleString("en-CA", { timeZone: "America/Toronto" }))}</p>
 <p style="font-size:14px;line-height:1.6;margin:0 0 22px;">${esc(order.company)}<br><strong>Agent:</strong> ${esc(order.agentName)}<br><strong>Store:</strong> ${esc(order.storeCode)}<br><strong>Store contact:</strong> ${esc(order.contactName)}</p>
 <table width="100%" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;font-size:13px;line-height:1.5;">
 <thead><tr style="background:#edf3f1;"><th align="left" style="${cell}font-weight:700;">Product</th><th align="center" style="${cell}width:90px;">Quantity</th><th align="right" style="${cell}width:110px;white-space:nowrap;">Line total</th></tr></thead>

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { orderReference } from "./order-reference";
 import { db, type Tx } from "./db";
 import {
   agentSchema,
@@ -410,9 +411,10 @@ export async function submitOrder(input: unknown): Promise<Order> {
       });
     }
     const [number] =
-      await tx`select 'TN-' || to_char(now() at time zone 'America/Toronto','YYYYMMDD-HH24MI') || '-' || lpad(nextval('terranova.order_number')::text, 8, '0') as reference`;
+      await tx`select nextval('terranova.order_number') as counter`;
+    const reference = orderReference(s.code, Number(number.counter));
     const [o] =
-      await tx`insert into terranova.orders ${tx({ reference: number.reference, agent_id: a.id, store_id: s.id, company_name: a.company, agent_name: [a.first_name, a.last_name].filter(Boolean).join(" "), agent_email: a.email, agent_code: a.code, store_code: s.code, contact_name: `${s.first_name} ${s.last_name}`, customer_email: s.email, comments: data.comments, customer_po: data.customerPo ?? "", contact_phone: data.contactPhone ?? "", total_dealer: sumMoney(lines.map((l) => l.line_dealer)), total_retail: sumMoney(lines.map((l) => l.line_retail)), idempotency_key: data.idempotencyKey, request_hash: hash })} returning id`;
+      await tx`insert into terranova.orders ${tx({ reference, agent_id: a.id, store_id: s.id, company_name: a.company, agent_name: [a.first_name, a.last_name].filter(Boolean).join(" "), agent_email: a.email, agent_code: a.code, store_code: s.code, contact_name: `${s.first_name} ${s.last_name}`, customer_email: s.email, comments: data.comments, customer_po: data.customerPo ?? "", contact_phone: data.contactPhone ?? "", total_dealer: sumMoney(lines.map((l) => l.line_dealer)), total_retail: sumMoney(lines.map((l) => l.line_retail)), idempotency_key: data.idempotencyKey, request_hash: hash })} returning id`;
     for (const line of lines)
       await tx`insert into terranova.order_lines ${tx({ ...line, order_id: o.id })}`;
     const recipients = [

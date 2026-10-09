@@ -197,6 +197,11 @@ export function OrderReceipt({ order }: { order: Order }) {
       </div>
       <div className="eyebrow">Order confirmation</div>
       <h2>{order.reference}</h2>
+      <p className="muted">
+        {new Date(order.date).toLocaleString("en-CA", {
+          timeZone: "America/Toronto",
+        })}
+      </p>
       <p>
         {order.company} · {order.agentName}
         <br />

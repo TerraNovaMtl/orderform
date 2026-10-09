@@ -1,10 +1,10 @@
 "use client";
+import { useLanguage } from "./language";
 import { useEffect, useState } from "react";
 import {
   productAmounts,
   dealerPrice,
   sumMoney,
-  moneyFormat as money,
   type Agent,
   type Product,
   type Store,
@@ -13,6 +13,7 @@ import {
 import { Modal, OrderReceipt, request } from "./shared";
 import { PdfCatalog } from "./pdf-catalog";
 export function Catalog({ code }: { code: string }) {
+  const { t, money } = useLanguage();
   const [agent, setAgent] = useState<Agent | null>(null),
     [products, setProducts] = useState<Product[]>([]),
     [loading, setLoading] = useState(true),
@@ -169,30 +170,30 @@ export function Catalog({ code }: { code: string }) {
   if (loading)
     return (
       <main className="access-card">
-        <p role="status">Loading your collection…</p>
+        <p role="status">{t("Loading your collection…")}</p>
       </main>
     );
   if (invalid)
     return (
       <main className="access-card">
-        <span className="eyebrow">Wholesale access</span>
-        <h1>Access required</h1>
-        <p>Please contact your vendor for a valid company-agent link.</p>
+        <span className="eyebrow">{t("Wholesale access")}</span>
+        <h1>{t("Access required")}</h1>
+        <p>{t("Please contact your vendor for a valid company-agent link.")}</p>
       </main>
     );
   if (!agent)
     return (
       <main className="access-card">
-        <h1>Unable to load the collection</h1>
-        <p role="alert">{error}</p>
-        <button onClick={() => location.reload()}>Try again</button>
+        <h1>{t("Unable to load the collection")}</h1>
+        <p role="alert">{t(error)}</p>
+        <button onClick={() => location.reload()}>{t("Try again")}</button>
       </main>
     );
   if (receipt)
     return (
       <main className="receipt-page">
         <div className="success no-print">
-          Your order has been recorded. Reference: {receipt.reference}
+          {t("Your order has been recorded. Reference:")} {receipt.reference}
         </div>
         <OrderReceipt order={receipt} />
         <button
@@ -206,7 +207,7 @@ export function Catalog({ code }: { code: string }) {
             sessionStorage.removeItem(`${draftKey}-submission`);
           }}
         >
-          Start another order
+          {t("Start another order")}
         </button>
       </main>
     );
@@ -214,29 +215,29 @@ export function Catalog({ code }: { code: string }) {
     return (
       <main className="store-page">
         <span className="eyebrow">{agent.company}</span>
-        <h1>Welcome to Terra Nova.</h1>
+        <h1>{t("Welcome to Terra Nova.")}</h1>
         <p className="muted">
-          Your agent:{" "}
+          {t("Your agent:")}{" "}
           {[agent.firstName, agent.lastName].filter(Boolean).join(" ") ||
             agent.code}
         </p>
         <section className="card store-card">
           <h2>
             {step === "lookup"
-              ? "Let’s find your store"
+              ? t("Let’s find your store")
               : step === "confirm"
-                ? "Is this your store?"
-                : "Create your store"}
+                ? t("Is this your store?")
+                : t("Create your store")}
           </h2>
           {error && (
             <p className="error" role="alert">
-              {error}
+              {t(error)}
             </p>
           )}
           {step === "lookup" ? (
             <form onSubmit={lookup}>
               <label>
-                Canadian Tire Store Number
+                {t("Canadian Tire Store Number")}
                 <input
                   required
                   maxLength={64}
@@ -247,11 +248,12 @@ export function Catalog({ code }: { code: string }) {
                 />
               </label>
               <p className="muted">
-                New here? Enter your Canadian Tire Store Number and we’ll help
-                you register.
+                {t(
+                  "New here? Enter your Canadian Tire Store Number and we’ll help you register.",
+                )}
               </p>
               <button disabled={busy}>
-                {busy ? "Looking up…" : "Continue →"}
+                {busy ? t("Looking up…") : t("Continue →")}
               </button>
             </form>
           ) : step === "confirm" && candidate ? (
@@ -265,7 +267,7 @@ export function Catalog({ code }: { code: string }) {
               </p>
               <div className="actions">
                 <button onClick={() => setStore(candidate)}>
-                  Yes, continue to catalog
+                  {t("Yes, continue to catalog")}
                 </button>
                 <button
                   className="secondary"
@@ -278,24 +280,24 @@ export function Catalog({ code }: { code: string }) {
                     setStep("register");
                   }}
                 >
-                  Update details
+                  {t("Update details")}
                 </button>
                 <button
                   className="text-button"
                   onClick={() => setStep("lookup")}
                 >
-                  Use another Canadian Tire Store Number
+                  {t("Use another Canadian Tire Store Number")}
                 </button>
               </div>
             </>
           ) : (
             <form onSubmit={register}>
               <p>
-                Store <strong>{storeCode}</strong>
+                {t("Store")} <strong>{storeCode}</strong>
               </p>
               <div className="form-grid">
                 <label>
-                  First name
+                  {t("First name")}
                   <input
                     required
                     value={contact.firstName}
@@ -305,7 +307,7 @@ export function Catalog({ code }: { code: string }) {
                   />
                 </label>
                 <label>
-                  Last name
+                  {t("Last name")}
                   <input
                     required
                     value={contact.lastName}
@@ -316,7 +318,7 @@ export function Catalog({ code }: { code: string }) {
                 </label>
               </div>
               <label>
-                Email
+                {t("Email")}
                 <input
                   required
                   type="email"
@@ -328,14 +330,14 @@ export function Catalog({ code }: { code: string }) {
               </label>
               <div className="actions">
                 <button disabled={busy}>
-                  {busy ? "Saving…" : "Save and view catalog"}
+                  {busy ? t("Saving…") : t("Save and view catalog")}
                 </button>
                 <button
                   type="button"
                   className="secondary"
                   onClick={() => setStep("lookup")}
                 >
-                  Back
+                  {t("Back")}
                 </button>
               </div>
             </form>
@@ -344,7 +346,7 @@ export function Catalog({ code }: { code: string }) {
       </main>
     );
   const shown = products.filter((p) =>
-    `${p.name} ${p.sku} ${p.category} ${p.style}`
+    `${t(p.name)} ${p.sku} ${p.category} ${p.style}`
       .toLowerCase()
       .includes(search.toLowerCase()),
   );
@@ -371,29 +373,29 @@ export function Catalog({ code }: { code: string }) {
   }
   function cartControl(p: Product, disabled = false) {
     if (p.status !== "available")
-      return <span className="badge">Unavailable</span>;
+      return <span className="badge">{t("Unavailable")}</span>;
     if (!(qty[p.id] > 0))
       return (
         <button
           type="button"
           className="add-to-cart"
           disabled={disabled}
-          aria-label={`Add ${p.name} to cart`}
+          aria-label={`${t("Add")} ${t(p.name)} ${t("to cart")}`}
           onClick={() => setProductQty(p.id, p.minimumOrder ?? 1)}
         >
-          Add to Cart
+          {t("Add to Cart")}
         </button>
       );
     return (
       <div
         className="cart-quantity"
         role="group"
-        aria-label={`Quantity for ${p.name}`}
+        aria-label={`${t("Quantity for")} ${t(p.name)}`}
       >
         <button
           type="button"
           className="secondary"
-          aria-label={`Decrease quantity for ${p.name}`}
+          aria-label={`${t("Decrease quantity for")} ${t(p.name)}`}
           disabled={disabled}
           onClick={() =>
             setProductQty(
@@ -408,7 +410,7 @@ export function Catalog({ code }: { code: string }) {
         <button
           type="button"
           className="secondary"
-          aria-label={`Increase quantity for ${p.name}`}
+          aria-label={`${t("Increase quantity for")} ${t(p.name)}`}
           disabled={disabled || qty[p.id] >= 100000}
           onClick={() => setProductQty(p.id, qty[p.id] + 1)}
         >
@@ -422,11 +424,13 @@ export function Catalog({ code }: { code: string }) {
       <div className="agent-strip">
         <strong>{agent.company}</strong>
         <span>
-          Agent:{" "}
+          {t("Agent:")}{" "}
           {[agent.firstName, agent.lastName].filter(Boolean).join(" ") ||
             agent.code}
         </span>
-        <span>Store {store.storeCode}</span>
+        <span>
+          {t("Store")} {store.storeCode}
+        </span>
         <button
           className="text-button"
           onClick={() => {
@@ -435,23 +439,24 @@ export function Catalog({ code }: { code: string }) {
             setError("");
           }}
         >
-          Change store
+          {t("Change store")}
         </button>
       </div>
       <main className="catalog-layout">
         <section>
           <div className="section-heading">
             <div>
-              <span className="eyebrow">The collection</span>
-              <h1>Stock your shelves.</h1>
+              <span className="eyebrow">{t("The collection")}</span>
+              <h1>{t("Stock your shelves.")}</h1>
               <p className="muted">
-                All prices per individual unit. Order by the pack, case or
-                display.
+                {t(
+                  "All prices per individual unit. Order by the pack, case or display.",
+                )}
               </p>
             </div>
             <input
-              aria-label="Search products"
-              placeholder="Search products or SKU…"
+              aria-label={t("Search products")}
+              placeholder={t("Search products or SKU…")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -459,8 +464,10 @@ export function Catalog({ code }: { code: string }) {
           {!shown.length && (
             <div className="empty">
               {products.length
-                ? "No products match your search."
-                : "Your agent’s catalog is being prepared. Please contact your vendor."}
+                ? t("No products match your search.")
+                : t(
+                    "Your agent’s catalog is being prepared. Please contact your vendor.",
+                  )}
             </div>
           )}
           <PdfCatalog
@@ -491,11 +498,11 @@ export function Catalog({ code }: { code: string }) {
                 <table className="product-table">
                   <thead>
                     <tr>
-                      <th>Product</th>
-                      <th>SRP</th>
-                      <th>Cost</th>
-                      <th>Dealer</th>
-                      <th>Order qty</th>
+                      <th>{t("Product")}</th>
+                      <th>{t("SRP")}</th>
+                      <th>{t("Cost")}</th>
+                      <th>{t("Dealer")}</th>
+                      <th>{t("Order qty")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -508,26 +515,26 @@ export function Catalog({ code }: { code: string }) {
                               <button
                                 className="image-button"
                                 onClick={() => setLightbox(p)}
-                                aria-label={`View ${p.name}`}
+                                aria-label={`View ${t(p.name)}`}
                               >
                                 <img
                                   src={p.image || "/images/image1.png"}
-                                  alt={p.name}
+                                  alt={t(p.name)}
                                 />
                               </button>
                               <div>
-                                <strong>{p.name}</strong>
+                                <strong>{t(p.name)}</strong>
                                 <small>
                                   {p.sku}
                                   {p.style && ` · ${p.style}`}
                                 </small>
                                 <small>
-                                  1 {p.orderUnit} = {p.unitsPerOrder}{" "}
-                                  {p.unitLabel}
+                                  1 {t(p.orderUnit)} = {p.unitsPerOrder}{" "}
+                                  {t(p.unitLabel)}
                                 </small>
                                 {(p.minimumOrder ?? 1) > 1 && (
                                   <small>
-                                    Minimum {p.minimumOrder} {p.orderUnit}s
+                                    Minimum {p.minimumOrder} {t(p.orderUnit)}s
                                   </small>
                                 )}
                                 {p.description && (
@@ -547,7 +554,7 @@ export function Catalog({ code }: { code: string }) {
                                     100
                                   ).toFixed(1)
                                 : "—"}
-                              % margin
+                              % {t("margin")}
                             </small>
                           </td>
                           <td>{cartControl(p)}</td>
@@ -560,21 +567,24 @@ export function Catalog({ code }: { code: string }) {
           ))}
         </section>
         <aside className="card order-panel">
-          <span className="eyebrow">Your selection</span>
-          <h2>Order summary</h2>
+          <span className="eyebrow">{t("Your selection")}</span>
+          <h2>{t("Order summary")}</h2>
           <p className="muted">
             {store.firstName} {store.lastName}
             <br />
-            Store {store.storeCode}
+            {t("Store")} {store.storeCode}
           </p>
           <div className="receipt-total">
             <span>
-              Dealer total<small>{units} individual units</small>
+              {t("Dealer total")}
+              <small>
+                {units} {t("individual units")}
+              </small>
             </span>
             <strong>{money(total)}</strong>
           </div>
           <label>
-            PO number (optional)
+            {t("PO number (optional)")}
             <input
               maxLength={200}
               value={customerPo}
@@ -582,7 +592,7 @@ export function Catalog({ code }: { code: string }) {
             />
           </label>
           <label>
-            Phone (optional)
+            {t("Phone (optional)")}
             <input
               type="tel"
               maxLength={80}
@@ -591,18 +601,18 @@ export function Catalog({ code }: { code: string }) {
             />
           </label>
           <label>
-            Order notes
+            {t("Order notes")}
             <textarea
               rows={3}
               maxLength={4000}
               value={comments}
               onChange={(e) => setComments(e.target.value)}
-              placeholder="Anything we should know?"
+              placeholder={t("Anything we should know?")}
             />
           </label>
           {error && (
             <p className="error" role="alert">
-              {error}
+              {t(error)}
             </p>
           )}
           <button
@@ -610,22 +620,22 @@ export function Catalog({ code }: { code: string }) {
             disabled={!lines.length}
             onClick={() => setReview(true)}
           >
-            Review order →
+            {t("Review order →")}
           </button>
-          <h3 className="cart-items-heading">Selected items</h3>
+          <h3 className="cart-items-heading">{t("Selected items")}</h3>
           {lines.length ? (
             lines.map((l) => (
               <div className="summary-line" key={l.p.id}>
                 <span>
-                  {l.p.name}
+                  {t(l.p.name)}
                   {l.p.catalogKey === "row-19"
-                    ? " - Twin"
+                    ? ` - ${t("Twin")}`
                     : l.p.catalogKey === "row-20"
-                      ? " - Queen"
+                      ? ` - ${t("Queen")}`
                       : ""}
                   <small>
-                    {l.qty} {l.p.orderUnit} · {l.qty * l.p.unitsPerOrder}{" "}
-                    {l.p.unitLabel}
+                    {l.qty} {t(l.p.orderUnit)} · {l.qty * l.p.unitsPerOrder}{" "}
+                    {t(l.p.unitLabel)}
                   </small>
                 </span>
                 <div className="summary-actions">
@@ -633,8 +643,8 @@ export function Catalog({ code }: { code: string }) {
                   <button
                     type="button"
                     className="text-button danger remove-cart-item"
-                    aria-label={`Remove ${l.p.name} from cart`}
-                    title="Remove item"
+                    aria-label={`${t("Remove")} ${t(l.p.name)} ${t("from cart")}`}
+                    title={t("Remove item")}
                     onClick={() =>
                       setQty((current) => ({ ...current, [l.p.id]: 0 }))
                     }
@@ -657,30 +667,30 @@ export function Catalog({ code }: { code: string }) {
               </div>
             ))
           ) : (
-            <p className="empty">Choose products to start your order.</p>
+            <p className="empty">{t("Choose products to start your order.")}</p>
           )}
         </aside>
       </main>
       {review && (
         <Modal
-          title="Review your order"
+          title={t("Review your order")}
           onClose={() => {
             if (!busy) setReview(false);
           }}
         >
           <p>
-            {agent.company} · Store {store.storeCode}
+            {agent.company} · {t("Store")} {store.storeCode}
             <br />
             {store.firstName} {store.lastName} · {store.email}
           </p>
           <table className="review-table">
             <thead>
               <tr>
-                <th scope="col">Product</th>
-                <th scope="col">Quantity</th>
-                <th scope="col">Delete</th>
+                <th scope="col">{t("Product")}</th>
+                <th scope="col">{t("Quantity")}</th>
+                <th scope="col">{t("Delete")}</th>
                 <th scope="col" className="review-price">
-                  Line total
+                  {t("Line total")}
                 </th>
               </tr>
             </thead>
@@ -688,11 +698,11 @@ export function Catalog({ code }: { code: string }) {
               {lines.map((l) => (
                 <tr key={l.p.id}>
                   <td>
-                    {l.p.name}
+                    {t(l.p.name)}
                     {l.p.sku && <small>SKU: {l.p.sku}</small>}
                     <small>
-                      {l.qty} {l.p.orderUnit} · {l.qty * l.p.unitsPerOrder}{" "}
-                      {l.p.unitLabel}
+                      {l.qty} {t(l.p.orderUnit)} · {l.qty * l.p.unitsPerOrder}{" "}
+                      {t(l.p.unitLabel)}
                     </small>
                   </td>
                   <td>{cartControl(l.p, busy)}</td>
@@ -701,8 +711,8 @@ export function Catalog({ code }: { code: string }) {
                       type="button"
                       className="text-button danger"
                       disabled={busy}
-                      aria-label={`Remove ${l.p.name} from review`}
-                      title="Remove item"
+                      aria-label={`${t("Remove")} ${t(l.p.name)} ${t("from review")}`}
+                      title={t("Remove item")}
                       onClick={() => setProductQty(l.p.id, 0)}
                     >
                       <svg
@@ -733,24 +743,30 @@ export function Catalog({ code }: { code: string }) {
             </p>
           )}
           <div className="receipt-total" aria-live="polite">
-            Total <strong>{money(total)}</strong>
+            {t("Total")} <strong>{money(total)}</strong>
           </div>
           {customerPo && <p>PO: {customerPo}</p>}
-          {contactPhone && <p>Phone: {contactPhone}</p>}
+          {contactPhone && (
+            <p>
+              {t("Phone:")} {contactPhone}
+            </p>
+          )}
           {comments && <p>{comments}</p>}
           {error && (
             <p className="error" role="alert">
-              {error}
+              {t(error)}
             </p>
           )}
-          <p className="muted">Your order will be recorded when you confirm.</p>
+          <p className="muted">
+            {t("Your order will be recorded when you confirm.")}
+          </p>
           <button disabled={busy || !lines.length} onClick={submit}>
-            {busy ? "Recording order…" : "Confirm and submit order"}
+            {busy ? t("Recording order…") : t("Confirm and submit order")}
           </button>
         </Modal>
       )}
       {lightbox && (
-        <Modal title={lightbox.name} onClose={() => setLightbox(null)}>
+        <Modal title={t(lightbox.name)} onClose={() => setLightbox(null)}>
           <div
             className="lightbox"
             onKeyDown={(e) => {
@@ -762,7 +778,7 @@ export function Catalog({ code }: { code: string }) {
               <button
                 type="button"
                 className="lightbox-nav"
-                aria-label="Previous product"
+                aria-label={t("Previous product")}
                 disabled={ordered.length < 2}
                 onClick={() => stepLightbox(-1)}
               >
@@ -771,12 +787,12 @@ export function Catalog({ code }: { code: string }) {
               <img
                 className="lightbox-image"
                 src={lightbox.image || "/images/image1.png"}
-                alt={lightbox.name}
+                alt={t(lightbox.name)}
               />
               <button
                 type="button"
                 className="lightbox-nav"
-                aria-label="Next product"
+                aria-label={t("Next product")}
                 disabled={ordered.length < 2}
                 onClick={() => stepLightbox(1)}
               >
@@ -788,8 +804,8 @@ export function Catalog({ code }: { code: string }) {
                 <small className="muted">
                   {lightbox.sku}
                   {lightbox.style && ` · ${lightbox.style}`} · 1{" "}
-                  {lightbox.orderUnit} = {lightbox.unitsPerOrder}{" "}
-                  {lightbox.unitLabel}
+                  {t(lightbox.orderUnit)} = {lightbox.unitsPerOrder}{" "}
+                  {t(lightbox.unitLabel)}
                 </small>
                 <p>
                   <strong>{money(dealerPrice(lightbox))}</strong>{" "}
@@ -803,7 +819,7 @@ export function Catalog({ code }: { code: string }) {
             </div>
             {lightboxIndex >= 0 && (
               <p className="lightbox-count muted">
-                {lightboxIndex + 1} of {ordered.length}
+                {lightboxIndex + 1} {t("of")} {ordered.length}
               </p>
             )}
           </div>

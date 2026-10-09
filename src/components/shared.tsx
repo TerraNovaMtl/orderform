@@ -1,4 +1,5 @@
 "use client";
+import { LanguageToggle, useLanguage } from "./language";
 import { useEffect, useRef } from "react";
 import { csvCell, moneyFormat, type Order } from "@/lib/domain";
 import { LocalInstanceBadge } from "./local-instance-badge";
@@ -27,6 +28,7 @@ export function Brand({
   admin?: boolean;
   company?: string;
 }) {
+  const { t } = useLanguage();
   return (
     <header className="brand-header">
       <a className="brand" href={admin ? "/admin" : "/"}>
@@ -43,10 +45,11 @@ export function Brand({
           }}
         />
         <small>
-          {admin ? "Wholesale administration" : "Wholesale collection"}
+          {admin ? "Wholesale administration" : t("Wholesale collection")}
         </small>
       </a>
       <LocalInstanceBadge />
+      {!admin && <LanguageToggle />}
       {company.trim().toLowerCase() === "canadian tire" && (
         <img
           src="/images/canadian-tire-clean.png"
@@ -58,7 +61,7 @@ export function Brand({
         />
       )}
       <span className="header-note">
-        Thoughtfully selected. Ready for your shelves.
+        {t("Thoughtfully selected. Ready for your shelves.")}
       </span>
     </header>
   );
@@ -72,6 +75,7 @@ export function Modal({
   children: React.ReactNode;
   onClose: () => void;
 }) {
+  const { t } = useLanguage();
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -91,7 +95,7 @@ export function Modal({
         <button
           type="button"
           className="icon-button"
-          aria-label="Close dialog"
+          aria-label={t("Close dialog")}
           onClick={onClose}
         >
           ×
@@ -166,6 +170,7 @@ export function exportOrder(order: Order) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 export function OrderReceipt({ order }: { order: Order }) {
+  const { t, language, money: moneyFormat } = useLanguage();
   return (
     <section className="receipt">
       <div
@@ -195,17 +200,20 @@ export function OrderReceipt({ order }: { order: Order }) {
           />
         )}
       </div>
-      <div className="eyebrow">Order confirmation</div>
+      <div className="eyebrow">{t("Order confirmation")}</div>
       <h2>{order.reference}</h2>
       <p className="muted">
-        {new Date(order.date).toLocaleString("en-CA", {
-          timeZone: "America/Toronto",
-        })}
+        {new Date(order.date).toLocaleString(
+          language === "fr" ? "fr-CA" : "en-CA",
+          {
+            timeZone: "America/Toronto",
+          },
+        )}
       </p>
       <p>
         {order.company} · {order.agentName}
         <br />
-        Store {order.storeCode} · {order.contactName}
+        {t("Store")} {order.storeCode} · {order.contactName}
         <br />
         {order.customerEmail}
       </p>
@@ -213,21 +221,21 @@ export function OrderReceipt({ order }: { order: Order }) {
         <table>
           <thead>
             <tr>
-              <th>Product</th>
-              <th>Quantity</th>
-              <th>Units</th>
-              <th>Total</th>
+              <th>{t("Product")}</th>
+              <th>{t("Quantity")}</th>
+              <th>{t("Units")}</th>
+              <th>{t("Total")}</th>
             </tr>
           </thead>
           <tbody>
             {order.lines.map((l) => (
               <tr key={l.id}>
                 <td>
-                  {l.name}
+                  {t(l.name)}
                   <small>{l.sku}</small>
                 </td>
                 <td>
-                  {l.qty} {l.orderUnit}
+                  {l.qty} {t(l.orderUnit)}
                 </td>
                 <td>{l.qty * l.unitsPerOrder}</td>
                 <td>{moneyFormat(l.lineDealer)}</td>
@@ -237,18 +245,24 @@ export function OrderReceipt({ order }: { order: Order }) {
         </table>
       </div>
       <div className="receipt-total">
-        Dealer total <strong>{moneyFormat(order.totalDealer)}</strong>
+        {t("Dealer total")} <strong>{moneyFormat(order.totalDealer)}</strong>
       </div>
-      <p className="muted">Retail value: {moneyFormat(order.totalRetail)}</p>
+      <p className="muted">
+        {t("Retail value:")} {moneyFormat(order.totalRetail)}
+      </p>
       {order.customerPo && <p>PO: {order.customerPo}</p>}
-      {order.contactPhone && <p>Phone: {order.contactPhone}</p>}
+      {order.contactPhone && (
+        <p>
+          {t("Phone:")} {order.contactPhone}
+        </p>
+      )}
       {order.comments && <p className="comments">{order.comments}</p>}
       <div className="actions no-print">
         <button onClick={() => exportOrder(order)} className="secondary">
-          Download CSV
+          {t("Download CSV")}
         </button>
         <button className="secondary" onClick={() => window.print()}>
-          Print / save PDF
+          {t("Print / save PDF")}
         </button>
       </div>
     </section>

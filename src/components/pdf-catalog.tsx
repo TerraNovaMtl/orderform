@@ -1,7 +1,8 @@
 "use client";
+import { useLanguage } from "./language";
 import { useEffect, useState } from "react";
 import pages from "@/lib/fma-pages.json";
-import { dealerPrice, moneyFormat, type Product } from "@/lib/domain";
+import { dealerPrice, type Product } from "@/lib/domain";
 import { Modal } from "./shared";
 
 export function PdfCatalog({
@@ -17,19 +18,20 @@ export function PdfCatalog({
   add: (product: Product) => void;
   controls: (product: Product) => React.ReactNode;
 }) {
-  const [message, setMessage] = useState("");
+  const { t, money: moneyFormat } = useLanguage();
+  const [message, setMessage] = useState<Product | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [choices, setChoices] = useState<Product[] | null>(null);
   useEffect(() => {
     setPageNumber(1);
-    setMessage("");
+    setMessage(null);
   }, [search]);
   const byKey = new Map(
     products.filter((p) => p.catalogKey).map((p) => [p.catalogKey, p]),
   );
   if (!byKey.size) return null;
   const matches = (p: Product) =>
-    `${p.name} ${p.sku} ${p.category} ${p.style}`
+    `${t(p.name)} ${p.sku} ${p.category} ${p.style}`
       .toLowerCase()
       .includes(search.toLowerCase());
   const visiblePages = pages.filter(
@@ -49,31 +51,32 @@ export function PdfCatalog({
   if (!currentPage) return null;
   function select(p: Product) {
     add(p);
-    setMessage(`${p.name} added to your cart.`);
+    setMessage(p);
   }
   return (
     <div className="pdf-catalog">
-      <aside className="catalog-help" aria-label="How to order">
-        <h3>Click the catalogue to order</h3>
+      <aside className="catalog-help" aria-label={t("How to order")}>
+        <h3>{t("Click the catalogue to order")}</h3>
         <ol>
           <li>
-            <strong>Click anywhere on the page.</strong> Add one assorted pack
-            or case to your cart. Colours and styles are selected by the
-            shipper. Choose Twin or Queen for comforters.
+            <strong>{t("Click anywhere on the page.")}</strong>
+            {t(
+              "Add one assorted pack or case to your cart. Colours and styles are selected by the shipper. Choose Twin or Queen for comforters.",
+            )}
           </li>
           <li>
-            <strong>Need more?</strong> Click it again to add another pack or
-            case.
+            <strong>{t("Need more?")}</strong>
+            {t("Click it again to add another pack or case.")}
           </li>
           <li>
-            <strong>Browse the catalogue.</strong> Use the left and right arrows
-            to turn pages.
+            <strong>{t("Browse the catalogue.")}</strong>
+            {t("Use the left and right arrows to turn pages.")}
           </li>
         </ol>
       </aside>
       {message && (
         <p role="status" className="pdf-cart-feedback">
-          {message}
+          {t(message.name)} {t("added to your cart.")}
         </p>
       )}
       {(currentPage ? [currentPage] : []).map((page) => {
@@ -99,7 +102,7 @@ export function PdfCatalog({
               <button
                 type="button"
                 className="secondary pdf-turn pdf-turn-previous"
-                aria-label="Previous catalogue page"
+                aria-label={t("Previous catalogue page")}
                 disabled={pageIndex === 0}
                 onClick={() =>
                   setPageNumber(visiblePages[pageIndex - 1].number)
@@ -116,12 +119,12 @@ export function PdfCatalog({
                 <span className="pdf-turn-arrow" aria-hidden="true">
                   ←
                 </span>
-                <span>Back</span>
+                <span>{t("Back")}</span>
               </button>
               <button
                 type="button"
                 className="secondary pdf-turn pdf-turn-next"
-                aria-label="Next catalogue page"
+                aria-label={t("Next catalogue page")}
                 disabled={pageIndex >= visiblePages.length - 1}
                 onClick={() =>
                   setPageNumber(visiblePages[pageIndex + 1].number)
@@ -135,13 +138,15 @@ export function PdfCatalog({
                   padding: "12px 6px",
                 }}
               >
-                <span>Next</span>
+                <span>{t("Next")}</span>
                 <span className="pdf-turn-arrow" aria-hidden="true">
                   →
                 </span>
               </button>
               {regions.length > 0 && (
-                <div className="pdf-add-hint">Click image to add to cart</div>
+                <div className="pdf-add-hint">
+                  {t("Click image to add to cart")}
+                </div>
               )}
               <div
                 className="pdf-page-sheet"
@@ -190,10 +195,10 @@ export function PdfCatalog({
                     }
                     aria-label={
                       regions.length > 1
-                        ? "Choose Twin or Queen comforter"
-                        : `Add ${product.name} to cart`
+                        ? t("Choose Twin or Queen comforter")
+                        : `${t("Add")} ${t(product.name)} ${t("to cart")}`
                     }
-                    title={`${product.name} · ${moneyFormat(dealerPrice(product))} per unit · ${product.unitsPerOrder} ${product.unitLabel} per ${product.orderUnit}`}
+                    title={`${t(product.name)} · ${moneyFormat(dealerPrice(product))} ${t("per unit")} · ${product.unitsPerOrder} ${t(product.unitLabel)} / ${t(product.orderUnit)}`}
                     onClick={() =>
                       regions.length > 1
                         ? setChoices(regions.map((r) => r.product))
@@ -202,8 +207,8 @@ export function PdfCatalog({
                   >
                     {qty[product.id] > 0 && (
                       <span>
-                        {qty[product.id]} {product.orderUnit}
-                        {qty[product.id] === 1 ? "" : "s"} in cart
+                        {qty[product.id]} {t(product.orderUnit)}
+                        {qty[product.id] === 1 ? "" : "s"} {t("in cart")}
                       </span>
                     )}
                   </button>
@@ -212,12 +217,12 @@ export function PdfCatalog({
             </div>
             <nav
               className="pdf-page-navigation pdf-bottom-pages"
-              aria-label="Catalogue pages"
+              aria-label={t("Catalogue pages")}
             >
               <label>
-                Page
+                {t("Page")}
                 <select
-                  aria-label="Catalogue page"
+                  aria-label={t("Catalogue page")}
                   value={currentPage?.number ?? ""}
                   onChange={(e) => setPageNumber(Number(e.target.value))}
                 >
@@ -228,35 +233,36 @@ export function PdfCatalog({
                   ))}
                 </select>
                 <span>
-                  of {pages.length}
+                  {t("of")} {pages.length}
                   {search ? ` · ${visiblePages.length} matching pages` : ""}
                 </span>
               </label>
             </nav>
             {regions.length > 0 && (
               <details className="pdf-page-options" key={page.number}>
-                <summary>Adjust quantities for this page</summary>
+                <summary>{t("Adjust quantities for this page")}</summary>
                 {regions.map(({ key, product }) => (
                   <div className="pdf-page-option" key={key}>
                     <div>
                       <strong>
-                        {product.name}
+                        {t(product.name)}
                         {product.catalogKey === "row-19"
-                          ? " - Twin"
+                          ? ` - ${t("Twin")}`
                           : product.catalogKey === "row-20"
-                            ? " - Queen"
+                            ? ` - ${t("Queen")}`
                             : ""}
                       </strong>
                       <small>
-                        {product.sku} · 1 {product.orderUnit} ={" "}
-                        {product.unitsPerOrder} {product.unitLabel}
+                        {product.sku} · 1 {t(product.orderUnit)} ={" "}
+                        {product.unitsPerOrder} {t(product.unitLabel)}
                         {(product.minimumOrder ?? 1) > 1
                           ? ` · Minimum ${product.minimumOrder} packs`
                           : ""}
                       </small>
                       <small>
-                        Dealer {moneyFormat(dealerPrice(product))} / unit ·
-                        Retail {moneyFormat(product.srp)} / unit
+                        {t("Dealer")} {moneyFormat(dealerPrice(product))} /{" "}
+                        {t("unit")} ·{t("Retail")} {moneyFormat(product.srp)} /{" "}
+                        {t("unit")}
                       </small>
                     </div>
                     {controls(product)}
@@ -268,7 +274,10 @@ export function PdfCatalog({
         );
       })}
       {choices && (
-        <Modal title="Choose comforter size" onClose={() => setChoices(null)}>
+        <Modal
+          title={t("Choose comforter size")}
+          onClose={() => setChoices(null)}
+        >
           <div className="actions">
             {choices.map((p) => (
               <button
@@ -279,8 +288,8 @@ export function PdfCatalog({
                   setChoices(null);
                 }}
               >
-                {p.catalogKey === "row-19" ? "Twin" : "Queen"} ·{" "}
-                {moneyFormat(dealerPrice(p) * p.unitsPerOrder)} per case
+                {p.catalogKey === "row-19" ? t("Twin") : t("Queen")} ·{" "}
+                {moneyFormat(dealerPrice(p) * p.unitsPerOrder)} {t("per case")}
               </button>
             ))}
           </div>

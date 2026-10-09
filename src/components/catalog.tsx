@@ -798,12 +798,25 @@ export function Catalog({
               {lines.map((l) => (
                 <tr key={l.p.id}>
                   <td>
-                    {t(l.p.name)}
-                    {l.p.sku && <small>SKU: {l.p.sku}</small>}
-                    <small>
-                      {l.qty} {t(l.p.orderUnit)} · {l.qty * l.p.unitsPerOrder}{" "}
-                      {t(l.p.unitLabel)}
-                    </small>
+                    <div className="receipt-product review-product">
+                      {l.p.image && (
+                        <img
+                          className="receipt-thumbnail review-thumbnail"
+                          src={l.p.image}
+                          alt={t(l.p.name)}
+                          width={44}
+                          height={56}
+                        />
+                      )}
+                      <div>
+                        {t(l.p.name)}
+                        {l.p.sku && <small>SKU: {l.p.sku}</small>}
+                        <small>
+                          {l.qty} {t(l.p.orderUnit)} ·{" "}
+                          {l.qty * l.p.unitsPerOrder} {t(l.p.unitLabel)}
+                        </small>
+                      </div>
+                    </div>
                   </td>
                   <td>{cartControl(l.p, busy)}</td>
                   <td className="review-delete">

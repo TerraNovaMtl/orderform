@@ -1620,3 +1620,20 @@ html[lang="fr"] .review-table th:last-child {
     display: block;
   }
 }
+
+.review-thumbnail {
+  width: 44px;
+  height: 56px;
+}
+.review-product {
+  gap: 10px;
+}
+@media (max-width: 700px) {
+  .review-product {
+    gap: 6px;
+  }
+  .review-thumbnail {
+    width: 32px;
+    height: 42px;
+  }
+}

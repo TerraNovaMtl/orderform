@@ -231,8 +231,21 @@ export function OrderReceipt({ order }: { order: Order }) {
             {order.lines.map((l) => (
               <tr key={l.id}>
                 <td>
-                  {t(l.name)}
-                  <small>{l.sku}</small>
+                  <div className="receipt-product">
+                    {l.image && (
+                      <img
+                        className="receipt-thumbnail"
+                        src={l.image}
+                        alt={t(l.name)}
+                        width={56}
+                        height={72}
+                      />
+                    )}
+                    <div>
+                      {t(l.name)}
+                      <small>{l.sku}</small>
+                    </div>
+                  </div>
                 </td>
                 <td>
                   {l.qty} {t(l.orderUnit)}
@@ -261,7 +274,18 @@ export function OrderReceipt({ order }: { order: Order }) {
         <button onClick={() => exportOrder(order)} className="secondary">
           {t("Download CSV")}
         </button>
-        <button className="secondary" onClick={() => window.print()}>
+        <button
+          className="secondary"
+          onClick={async (e) => {
+            const images = e.currentTarget
+              .closest(".receipt")
+              ?.querySelectorAll("img");
+            await Promise.allSettled(
+              Array.from(images ?? []).map((image) => image.decode()),
+            );
+            window.print();
+          }}
+        >
           {t("Print / save PDF")}
         </button>
       </div>

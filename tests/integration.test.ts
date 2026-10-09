@@ -92,7 +92,7 @@ test(
         category: company,
         style: "",
         description: "",
-        image: "",
+        image: "/images/image1.png",
         status: "available",
         agentCodes: [code],
       };
@@ -120,6 +120,7 @@ test(
       ]);
       assert.equal(first.id, retry.id);
       assert.equal(first.totalDealer, 16.65);
+      assert.equal(first.lines[0].image, "/images/image1.png");
       assert.equal(first.totalRetail, 36);
       const [count] =
         await db()`select count(*)::int as count from terranova.orders where idempotency_key=${input.idempotencyKey}`;

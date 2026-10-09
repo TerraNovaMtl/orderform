@@ -284,6 +284,7 @@ export async function deleteProduct(id: string, actor: string) {
 }
 function mapLine(r: Row): OrderLine {
   return {
+    image: r.product_image || "",
     id: r.id,
     productId: r.product_id,
     name: r.name,
@@ -333,7 +334,7 @@ export async function getOrder(
   if (!r) throw notFound();
   return mapOrder(
     r,
-    await sql`select * from terranova.order_lines where order_id=${id} and removed=false order by id`,
+    await sql`select l.*,p.image as product_image from terranova.order_lines l left join terranova.products p on p.id=l.product_id where l.order_id=${id} and l.removed=false order by l.id`,
   );
 }
 export async function listOrders(): Promise<Order[]> {
@@ -341,7 +342,7 @@ export async function listOrders(): Promise<Order[]> {
     await db()`select * from terranova.orders order by created_at desc limit 500`;
   if (!rows.length) return [];
   const lines =
-    await db()`select * from terranova.order_lines where order_id in ${db()(rows.map((r) => r.id))} and removed=false order by id`;
+    await db()`select l.*,p.image as product_image from terranova.order_lines l left join terranova.products p on p.id=l.product_id where l.order_id in ${db()(rows.map((r) => r.id))} and l.removed=false order by l.id`;
   return rows.map((r) =>
     mapOrder(
       r,

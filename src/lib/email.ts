@@ -2,6 +2,7 @@ import nodemailer from "nodemailer";
 import { resolve } from "node:path";
 import { db } from "./db";
 import { getOrder } from "./repository";
+import { orderEmailThumbnails } from "./email-thumbnails";
 import { renderOrderEmail } from "./order-email";
 let transport: ReturnType<typeof nodemailer.createTransport> | undefined;
 function gmail() {
@@ -36,7 +37,10 @@ export async function deliverEmails() {
     jobs.map(async (job) => {
       try {
         const o = await getOrder(job.order_id);
-        const html = renderOrderEmail(o);
+        const thumbnails = job.delivery_payload
+          ? []
+          : await orderEmailThumbnails(o);
+        const html = renderOrderEmail(o, thumbnails);
         const [snapshot] =
           await db()`select agent_email from terranova.orders where id=${job.order_id}`;
         const agentEmail = snapshot?.agent_email?.trim().toLowerCase();
@@ -55,12 +59,21 @@ export async function deliverEmails() {
               : [],
           subject: `Terra Nova order — ${o.reference}`,
           html,
+          thumbnails,
         };
         if (!job.delivery_payload)
           await db()`update terranova.email_outbox set delivery_payload=${db().json(payload)},first_attempt_at=now() where id=${job.id}`;
         const info = await gmail().sendMail({
           ...payload,
           attachments: [
+            ...(payload.thumbnails ?? []).map(
+              ({
+                lineId: _lineId,
+                width: _width,
+                height: _height,
+                ...attachment
+              }: import("./email-thumbnails").EmailThumbnail) => attachment,
+            ),
             ...(payload.html.includes("cid:terra-nova-logo")
               ? [
                   {

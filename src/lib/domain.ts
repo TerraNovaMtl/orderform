@@ -123,6 +123,7 @@ export type Store = z.infer<typeof storeSchema> & {
   company: string;
 };
 export type OrderLine = {
+  image?: string;
   id: string;
   productId: string | null;
   name: string;

@@ -1,3 +1,4 @@
+import type { EmailThumbnail } from "./email-thumbnails";
 import type { Order } from "./domain";
 
 const esc = (value: string) =>
@@ -9,7 +10,20 @@ const esc = (value: string) =>
       ]!,
   );
 
-export function renderOrderEmail(order: Order) {
+export function renderOrderEmail(
+  order: Order,
+  thumbnails: EmailThumbnail[] = [],
+) {
+  const thumbnailByLine = new Map(
+    thumbnails.map((thumbnail) => [thumbnail.lineId, thumbnail]),
+  );
+  const productCell = (line: Order["lines"][number]) => {
+    const thumbnail = thumbnailByLine.get(line.id);
+    const label = `${esc(line.name)}${line.sku ? `<br><span style="font-size:11px;color:#697772;">SKU: ${esc(line.sku)}</span>` : ""}`;
+    return thumbnail
+      ? `<table role="presentation" cellspacing="0" cellpadding="0"><tr><td valign="middle" style="padding:0 10px 0 0;border:0;"><img src="cid:${esc(thumbnail.cid)}" alt="${esc(line.name)}" width="${thumbnail.width}" height="${thumbnail.height}" style="display:block;width:${thumbnail.width}px;height:${thumbnail.height}px;border:1px solid #e4e8e5;"></td><td valign="middle" style="padding:0;border:0;">${label}</td></tr></table>`
+      : label;
+  };
   const cell = "border:1px solid #dce2de;padding:12px 14px;";
   const companyLogo =
     order.company.trim().toLowerCase() === "canadian tire"
@@ -23,7 +37,7 @@ export function renderOrderEmail(order: Order) {
 <p style="font-size:14px;line-height:1.6;margin:0 0 22px;">${esc(order.company)}<br><strong>Agent:</strong> ${esc(order.agentName)}<br><strong>Store:</strong> ${esc(order.storeCode)}<br><strong>Store contact:</strong> ${esc(order.contactName)}</p>
 <table width="100%" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;font-size:13px;line-height:1.5;">
 <thead><tr style="background:#edf3f1;"><th align="left" style="${cell}font-weight:700;">Product</th><th align="center" style="${cell}width:90px;">Quantity</th><th align="right" style="${cell}width:110px;white-space:nowrap;">Line total</th></tr></thead>
-<tbody>${order.lines.map((line) => `<tr><td style="${cell}">${esc(line.name)}${line.sku ? `<br><span style="font-size:11px;color:#697772;">SKU: ${esc(line.sku)}</span>` : ""}</td><td align="center" style="${cell}white-space:nowrap;">${line.qty} ${esc(line.orderUnit)}</td><td align="right" style="${cell}text-align:right;white-space:nowrap;">$${line.lineDealer.toFixed(2)}</td></tr>`).join("")}</tbody>
+<tbody>${order.lines.map((line) => `<tr><td style="${cell}">${productCell(line)}</td><td align="center" style="${cell}white-space:nowrap;">${line.qty} ${esc(line.orderUnit)}</td><td align="right" style="${cell}text-align:right;white-space:nowrap;">$${line.lineDealer.toFixed(2)}</td></tr>`).join("")}</tbody>
 <tfoot><tr style="background:#f7f9f8;"><td colspan="2" style="${cell}font-size:16px;font-weight:700;">Dealer total</td><td align="right" style="${cell}text-align:right;font-size:24px;font-weight:700;white-space:nowrap;">$${order.totalDealer.toFixed(2)}</td></tr></tfoot></table>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:22px;font-size:13px;line-height:1.6;"><tr><td style="padding-bottom:6px;"><strong>PO number:</strong> ${esc(order.customerPo || "—")}</td></tr><tr><td><strong>Phone:</strong> ${esc(order.contactPhone || "—")}</td></tr>${order.comments ? `<tr><td style="padding-top:14px;"><strong>Order notes</strong><br>${esc(order.comments).replace(/\r?\n/g, "<br>")}</td></tr>` : ""}</table>
 </td></tr></table></body></html>`;

@@ -36,11 +36,17 @@ export async function deliverEmails() {
   await Promise.all(
     jobs.map(async (job) => {
       try {
-        const o = await getOrder(job.order_id);
+        const o = job.order_snapshot || (await getOrder(job.order_id));
         const thumbnails = job.delivery_payload
           ? []
           : await orderEmailThumbnails(o);
-        const html = renderOrderEmail(o, thumbnails);
+        const html = renderOrderEmail(
+          o,
+          thumbnails,
+          job.email_kind === "update"
+            ? { comments: job.email_comments }
+            : undefined,
+        );
         const [snapshot] =
           await db()`select agent_email from terranova.orders where id=${job.order_id}`;
         const agentEmail = snapshot?.agent_email?.trim().toLowerCase();
@@ -57,7 +63,10 @@ export async function deliverEmails() {
             agentEmail !== job.recipient.trim().toLowerCase()
               ? [agentEmail]
               : [],
-          subject: `Terra Nova order — ${o.reference}`,
+          subject:
+            job.email_kind === "update"
+              ? `Order update — ${o.reference}`
+              : `Terra Nova order — ${o.reference}`,
           html,
           thumbnails,
         };

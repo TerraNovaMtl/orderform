@@ -14,7 +14,20 @@ export async function request<T>(url: string, body?: unknown): Promise<T> {
           body: JSON.stringify(body),
         },
   );
-  const data = await res.json();
+  const text = await res.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw Object.assign(
+      new Error(
+        res.status === 413
+          ? "The upload is too large. Please choose a smaller image."
+          : "The server could not complete the request. Please try again.",
+      ),
+      { status: res.status },
+    );
+  }
   if (!res.ok)
     throw Object.assign(new Error(data.error || "Request failed"), {
       status: res.status,

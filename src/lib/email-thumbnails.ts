@@ -38,21 +38,21 @@ export async function orderEmailThumbnails(
   order: Order,
 ): Promise<EmailThumbnail[]> {
   const ids = order.lines.flatMap((line) =>
-    line.productId ? [line.productId] : [],
+    line.productId && !line.image ? [line.productId] : [],
   );
-  if (!ids.length) return [];
   const sql = db();
-  const products =
-    await sql`select id,image from terranova.products where id in ${sql(ids)}`;
+  const products = ids.length
+    ? await sql`select id,image from terranova.products where id in ${sql(ids)}`
+    : [];
   const cache = new Map<
     string,
     Promise<Awaited<ReturnType<typeof resizeEmailThumbnail>> | null>
   >();
   const thumbnails: EmailThumbnail[] = [];
   for (const line of order.lines) {
-    const image = products.find(
-      (product) => product.id === line.productId,
-    )?.image;
+    const image =
+      line.image ||
+      products.find((product) => product.id === line.productId)?.image;
     if (!image) continue;
     if (!cache.has(image))
       cache.set(

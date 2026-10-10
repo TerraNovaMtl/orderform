@@ -565,3 +565,50 @@ export async function deleteCategory(
     });
   });
 }
+
+export async function resendOrderUpdate(
+  id: string,
+  version: number,
+  emailComments: string,
+  actor: string,
+) {
+  return db().begin(async (tx) => {
+    const [row] =
+      await tx`select version,agent_email,customer_email from terranova.orders where id=${id} for update`;
+    if (!row) throw notFound();
+    if (row.version !== version)
+      throw new AppError(
+        "Order changed. Reload before sending an update.",
+        409,
+      );
+    const order = await getOrder(id, tx);
+    const previous =
+      await tx`select distinct recipient from terranova.email_outbox where order_id=${id} and email_kind='confirmation'`;
+    const recipients = [
+      ...new Set(
+        (previous.length
+          ? previous.map((r) => r.recipient)
+          : [
+              process.env.ORDER_EMAIL || "terranova.mtl.ai@gmail.com",
+              row.customer_email,
+            ]
+        )
+          .filter(Boolean)
+          .map((email) => email.trim().toLowerCase()),
+      ),
+    ];
+    let queued = 0;
+    for (const recipient of recipients) {
+      const inserted =
+        await tx`insert into terranova.email_outbox (order_id,recipient,order_version,email_kind,email_comments,order_snapshot) values (${id},${recipient},${version},'update',${emailComments},${tx.json(order)}) on conflict (order_id,recipient,order_version) do nothing returning id`;
+      queued += inserted.length;
+    }
+    if (queued)
+      await audit(tx, actor, "order.update_email_queued", id, {
+        version,
+        emailComments,
+        recipients,
+      });
+    return { queued };
+  });
+}

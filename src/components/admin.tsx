@@ -1,4 +1,5 @@
 "use client";
+import { prepareProductImage } from "@/lib/product-image-upload";
 import { CategoryFilter } from "./category-filter";
 import { useEffect, useState } from "react";
 import {
@@ -52,6 +53,15 @@ export function Admin() {
     [busy, setBusy] = useState(false),
     [notice, setNotice] = useState(""),
     [cancelled, setCancelled] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imageUploadNotice, setImageUploadNotice] = useState("");
+  const [resendOrder, setResendOrder] = useState<{
+    id: string;
+    version: number;
+    reference: string;
+    step: "confirm" | "comments";
+  } | null>(null);
+  const [updateEmailComments, setUpdateEmailComments] = useState("");
   const [hiddenProductCategories, setHiddenProductCategories] = useState<
     string[]
   >([]);
@@ -102,24 +112,31 @@ export function Admin() {
   const match = (...values: string[]) =>
     values.join(" ").toLowerCase().includes(search.toLowerCase());
   async function upload(file: File) {
+    setImageUploading(true);
+    setImageUploadNotice("");
     setBusy(true);
     setError("");
     try {
-      if (file.size > 2_097_152) throw new Error("Choose an image under 2 MB");
+      const prepared = await prepareProductImage(file);
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(String(reader.result).split(",")[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
+        reader.onerror = () =>
+          reject(new Error("The selected image could not be read."));
+        reader.readAsDataURL(prepared);
       });
       const result = await request<{ image: string }>("/api/admin", {
         action: "uploadImage",
         contentBase64: base64,
       });
       setProduct((p) => (p ? { ...p, image: result.image } : p));
+      setImageUploadNotice(
+        "Image uploaded. Save the product to publish this page.",
+      );
     } catch (e) {
       setError((e as Error).message);
     } finally {
+      setImageUploading(false);
       setBusy(false);
     }
   }
@@ -173,6 +190,7 @@ export function Admin() {
         </button>
       </div>
       {error &&
+        !resendOrder &&
         !category &&
         !product &&
         !agent &&
@@ -357,6 +375,7 @@ export function Admin() {
                 <button
                   onClick={() => {
                     setError("");
+                    setImageUploadNotice("");
                     setProduct({
                       ...blankProduct,
                       category: data.categories[0]?.nameEn ?? "",
@@ -1080,6 +1099,14 @@ export function Admin() {
           <form
             onSubmit={async (e) => {
               e.preventDefault();
+              if (imageUploading) return;
+              if (!product.id && !product.image) {
+                setError(
+                  "Upload a product page image before saving the new product.",
+                );
+                return;
+              }
+
               if (await mutate({ action: "saveProduct", data: product }))
                 setProduct(null);
             }}
@@ -1298,13 +1325,15 @@ export function Admin() {
                 </div>
               </fieldset>
               <label className="span-2">
-                Product page image (PNG, JPEG, WebP or GIF, up to 2 MB)
+                Product page image (PNG, JPEG, WebP or GIF, up to 20 MB)
                 <input
                   type="file"
                   accept="image/png,image/jpeg,image/webp,image/gif"
                   disabled={busy}
                   onChange={(e) => {
-                    if (e.target.files?.[0]) void upload(e.target.files[0]);
+                    const file = e.target.files?.[0];
+                    e.target.value = "";
+                    if (file) void upload(file);
                   }}
                 />
               </label>
@@ -1312,6 +1341,19 @@ export function Admin() {
                 New product pages use the entire uploaded image as the clickable
                 area to add one ordering pack or case to the cart.
               </p>
+              <p className="muted span-2">
+                Large images are optimized automatically without cropping.
+              </p>
+              {imageUploading && (
+                <p className="notice span-2" role="status">
+                  Preparing and uploading image…
+                </p>
+              )}
+              {imageUploadNotice && (
+                <p className="success span-2" role="status">
+                  {imageUploadNotice}
+                </p>
+              )}
               {product.image && (
                 <img
                   className="edit-image"
@@ -1322,7 +1364,11 @@ export function Admin() {
             </div>
             <div className="actions">
               <button disabled={busy}>
-                {busy ? "Saving…" : "Save product"}
+                {imageUploading
+                  ? "Uploading image…"
+                  : busy
+                    ? "Saving…"
+                    : "Save product"}
               </button>
               {product.id && (
                 <button
@@ -1564,6 +1610,86 @@ export function Admin() {
           </form>
         </Modal>
       )}
+      {resendOrder && (
+        <Modal
+          title={
+            resendOrder.step === "confirm"
+              ? "Send an order update?"
+              : "Order update email"
+          }
+          onClose={() => {
+            if (!busy) setResendOrder(null);
+          }}
+        >
+          {modalError}
+          <p>{resendOrder.reference} has been saved.</p>
+          {resendOrder.step === "confirm" ? (
+            <>
+              <p>
+                Resend the updated order to the original recipients and CC the
+                agent?
+              </p>
+              <div className="actions">
+                <button
+                  onClick={() =>
+                    setResendOrder({ ...resendOrder, step: "comments" })
+                  }
+                >
+                  Yes, resend email
+                </button>
+                <button
+                  className="secondary"
+                  onClick={() => setResendOrder(null)}
+                >
+                  No, finish
+                </button>
+              </div>
+            </>
+          ) : (
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (
+                  await mutate({
+                    action: "resendOrderUpdate",
+                    id: resendOrder.id,
+                    version: resendOrder.version,
+                    comments: updateEmailComments,
+                  })
+                ) {
+                  setResendOrder(null);
+                  setNotice("Order update email queued for all recipients.");
+                }
+              }}
+            >
+              <p>Subject: Order update — {resendOrder.reference}</p>
+              <label>
+                Email comments (optional)
+                <textarea
+                  maxLength={2000}
+                  rows={4}
+                  value={updateEmailComments}
+                  onChange={(e) => setUpdateEmailComments(e.target.value)}
+                  placeholder="Explain what changed…"
+                />
+              </label>
+              <div className="actions">
+                <button disabled={busy}>
+                  {busy ? "Sending…" : "Send order update"}
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={busy}
+                  onClick={() => setResendOrder(null)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
+        </Modal>
+      )}
       {order && (
         <Modal
           title={`Edit ${order.reference}`}
@@ -1590,8 +1716,16 @@ export function Admin() {
                     lines: order.lines.map((l) => ({ id: l.id, qty: l.qty })),
                   },
                 })
-              )
+              ) {
+                setResendOrder({
+                  id: order.id,
+                  version: order.version + 1,
+                  reference: order.reference,
+                  step: "confirm",
+                });
+                setUpdateEmailComments("");
                 setOrder(null);
+              }
             }}
           >
             {modalError}

@@ -93,3 +93,17 @@ test("orders without an available product image still render complete lines", ()
   assert.match(html, /SKU: 123&amp;456/);
   assert.match(html, /1 case/);
 });
+
+test("order updates show optional comments separately and escape their content", () => {
+  const html = renderOrderEmail(order, [], {
+    comments: "Quantity increased\n<Please confirm>",
+  });
+  assert.match(html, />Order update<\/h1>/);
+  assert.match(html, /Update comments/);
+  assert.match(html, /Quantity increased<br>&lt;Please confirm&gt;/);
+  assert.match(html, /SKU: 123&amp;456/);
+  assert.doesNotMatch(
+    renderOrderEmail(order, [], { comments: "" }),
+    /Update comments/,
+  );
+});

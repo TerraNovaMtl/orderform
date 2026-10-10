@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { db } from "../src/lib/db";
 import {
+  resendOrderUpdate,
   saveCategory,
   saveAgent,
   saveStore,
@@ -229,6 +230,29 @@ test(
       const [outbox] =
         await db()`select count(*)::int as count from terranova.email_outbox where order_id=${first.id}`;
       assert.ok(outbox.count >= 1);
+      await assert.rejects(
+        resendOrderUpdate(first.id, first.version, "Old version", actor),
+        /changed/,
+      );
+      const queued = await resendOrderUpdate(
+        first.id,
+        edited.version,
+        "Updated quantities",
+        actor,
+      );
+      assert.equal(queued.queued, outbox.count);
+      const updates =
+        await db()`select * from terranova.email_outbox where order_id=${first.id} and email_kind='update'`;
+      assert.equal(updates.length, outbox.count);
+      assert.equal(updates[0].email_comments, "Updated quantities");
+      assert.equal(updates[0].order_snapshot.totalDealer, 24.98);
+      assert.equal(updates[0].order_snapshot.lines[0].qty, 3);
+      assert.equal(
+        (await resendOrderUpdate(first.id, edited.version, "Retry", actor))
+          .queued,
+        0,
+      );
+
       await assert.rejects(
         deleteOrder(first.id, first.version, actor),
         /changed/,

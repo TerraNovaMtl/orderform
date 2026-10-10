@@ -180,3 +180,7 @@ Northern Trek sweaters on PDF page 2 have ten separately orderable style packs (
 ### Managed bilingual categories
 
 Migration `005_categories.sql` adds the category list and seeds existing product categories. Apply it to each database before deploying this version (`node --env-file=.env.local scripts/migrate.mjs --test` for development, or omit `--test` for production). Admins can add and edit both English and French names in the Categories tab. Products select a category from that list; renaming its English name updates linked products and their versions. Customer category filters use the saved French name when French is selected. Existing categories without a known French translation initially use their English name and can be edited by an admin.
+
+### Order update emails
+
+Apply migration `006_order_update_emails.sql` before deploying the order update resend flow. After saving an order, admins can choose to send an update and add optional comments that appear only in the email. Update emails go to the original confirmation recipients with the agent copied, and use the subject `Order update — [reference]`. Each saved revision can be queued once; the queue preserves that revision's order details and comments for retries. The existing local test-recipient redirect still applies.

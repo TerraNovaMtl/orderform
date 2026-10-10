@@ -1,3 +1,5 @@
+import { after } from "next/server";
+import { deliverEmails } from "@/lib/email";
 import { z } from "zod";
 import { adminEmail } from "@/lib/auth";
 import {
@@ -19,11 +21,13 @@ import {
   deleteAgent,
   deleteCompany,
   editOrder,
+  resendOrderUpdate,
   AppError,
 } from "@/lib/repository";
 import { json, errorResponse, readJson } from "@/lib/http";
 import { uploadImage } from "@/lib/images";
 import { db } from "@/lib/db";
+export const maxDuration = 60;
 export async function GET() {
   try {
     if (!(await adminEmail()))
@@ -98,6 +102,25 @@ export async function POST(req: Request) {
         break;
       case "deleteStore":
         result = await deleteStore(z.uuid().parse(body.id), actor);
+        break;
+      case "resendOrderUpdate":
+        result = await resendOrderUpdate(
+          z.uuid().parse(body.id),
+          z.number().int().positive().parse(body.version),
+          z
+            .string()
+            .trim()
+            .max(2000)
+            .parse(body.comments ?? ""),
+          actor,
+        );
+        after(async () => {
+          try {
+            await deliverEmails();
+          } catch {
+            console.error("Order update email worker deferred to retry");
+          }
+        });
         break;
       case "editOrder":
         result = await editOrder(body.data, actor);

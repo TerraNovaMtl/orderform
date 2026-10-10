@@ -3,6 +3,7 @@ const config: NextConfig = {
   agentRules: false,
   poweredByHeader: false,
   outputFileTracingIncludes: {
+    "/api/admin": ["./public/images/*.{png,jpg,jpeg,webp,gif}"],
     "/api/orders": ["./public/images/*.{png,jpg,jpeg,webp,gif}"],
     "/api/jobs/email": ["./public/images/*.{png,jpg,jpeg,webp,gif}"],
   },

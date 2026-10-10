@@ -27,7 +27,9 @@ const product: Product = {
 test("uploaded product page maps the entire image and appends after the imported catalogue", () => {
   const existing = catalogPages([]);
   const result = catalogPages([product]);
-  const page = result.at(-1)!;
+  const page = result.find((page) =>
+    page.regions.some((r) => r.key === product.id),
+  )!;
   assert.equal(result.length, existing.length + 1);
   assert.equal(page.number, existing.at(-1)!.number + 1);
   assert.equal(page.image, product.image);
@@ -41,4 +43,17 @@ test("imported products are not duplicated and products without uploads stay in 
     catalogPages([{ ...product, catalogKey: "row-10" }]).length,
     catalogPages([]).length,
   );
+});
+
+test("catalogue follows product order while keeping cover first and shared pages together", () => {
+  const sweater = { ...product, id: "sweater", catalogKey: "row-10" };
+  const shorts = { ...product, id: "shorts", catalogKey: "row-11" };
+  const twin = { ...product, id: "twin", catalogKey: "row-19" };
+  const queen = { ...product, id: "queen", catalogKey: "row-20" };
+  const result = catalogPages([shorts, twin, queen, sweater]);
+  assert.equal(result[0].number, 1);
+  assert.equal(result[1].number, 3);
+  assert.equal(result[2].number, 11);
+  assert.equal(result[3].number, 2);
+  assert.equal(result.filter((page) => page.number === 11).length, 1);
 });

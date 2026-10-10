@@ -1,4 +1,5 @@
 "use client";
+import { reorderVisibleProducts } from "@/lib/product-order";
 import { prepareProductImage } from "@/lib/product-image-upload";
 import { CategoryFilter } from "./category-filter";
 import { useEffect, useState } from "react";
@@ -53,6 +54,8 @@ export function Admin() {
     [busy, setBusy] = useState(false),
     [notice, setNotice] = useState(""),
     [cancelled, setCancelled] = useState(false);
+  const [draggedProduct, setDraggedProduct] = useState<string | null>(null);
+  const [dropProduct, setDropProduct] = useState<string | null>(null);
   const [imageUploading, setImageUploading] = useState(false);
   const [imageUploadNotice, setImageUploadNotice] = useState("");
   const [resendOrder, setResendOrder] = useState<{
@@ -169,6 +172,32 @@ export function Admin() {
       !hiddenProductCategories.includes(p.category) &&
       match(p.name, p.sku, p.category),
   );
+  async function moveProduct(source: string, target: string) {
+    if (!data || busy || source === target) return;
+    const previous = data.products;
+    const expectedIds = previous.map((p) => p.id);
+    const ids = reorderVisibleProducts(
+      expectedIds,
+      filteredProducts.map((p) => p.id),
+      source,
+      target,
+    );
+    if (ids === expectedIds) return;
+    setDraggedProduct(null);
+    setDropProduct(null);
+    const byId = new Map(previous.map((p) => [p.id, p]));
+    setData({ ...data, products: ids.map((id) => byId.get(id)!) });
+    if (await mutate({ action: "reorderProducts", ids, expectedIds }))
+      setNotice(
+        "Product order saved. The customer catalogue uses this sequence.",
+      );
+    else {
+      setData((current) =>
+        current ? { ...current, products: previous } : current,
+      );
+      refresh().catch(() => {});
+    }
+  }
   const modalError = error && (
     <p className="error" role="alert">
       {error}
@@ -385,6 +414,10 @@ export function Admin() {
                   + Add product
                 </button>
               </div>
+              <p className="muted">
+                Drag the handles to set the catalogue order. Changes save
+                automatically. Filtered-out products keep their positions.
+              </p>
               <div className="catalog-view-toolbar">
                 <CategoryFilter
                   categories={data.categories.map((c) => c.nameEn)}
@@ -393,9 +426,10 @@ export function Admin() {
                 />
               </div>
               <div className="card table-scroll">
-                <table>
+                <table className="sortable-products-table">
                   <thead>
                     <tr>
+                      <th scope="col" aria-label="Reorder" />
                       <th>Product</th>
                       <th>Category</th>
                       <th>Cost / Dealer / SRP</th>
@@ -406,7 +440,75 @@ export function Admin() {
                   </thead>
                   <tbody>
                     {filteredProducts.map((p) => (
-                      <tr key={p.id}>
+                      <tr
+                        key={p.id}
+                        className={
+                          dropProduct === p.id ? "product-drop-target" : ""
+                        }
+                        onDragOver={(e) => {
+                          if (draggedProduct && !busy) {
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = "move";
+                            setDropProduct(p.id);
+                          }
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          if (draggedProduct)
+                            void moveProduct(draggedProduct, p.id);
+                        }}
+                      >
+                        <td className="product-drag-cell">
+                          <button
+                            type="button"
+                            className="product-drag-handle"
+                            draggable={!busy}
+                            disabled={busy}
+                            aria-label={`Reorder ${p.name}`}
+                            title="Drag to reorder. Use Up and Down arrow keys to move."
+                            onDragStart={(e) => {
+                              setDraggedProduct(p.id);
+                              e.dataTransfer.effectAllowed = "move";
+                              e.dataTransfer.setData("text/plain", p.id);
+                            }}
+                            onDragEnd={() => {
+                              setDraggedProduct(null);
+                              setDropProduct(null);
+                            }}
+                            onKeyDown={(e) => {
+                              const direction =
+                                e.key === "ArrowUp"
+                                  ? -1
+                                  : e.key === "ArrowDown"
+                                    ? 1
+                                    : 0;
+                              const index = filteredProducts.findIndex(
+                                (product) => product.id === p.id,
+                              );
+                              const target =
+                                filteredProducts[index + direction];
+                              if (direction && target) {
+                                e.preventDefault();
+                                void moveProduct(p.id, target.id);
+                              }
+                            }}
+                          >
+                            <svg
+                              width="18"
+                              height="22"
+                              viewBox="0 0 18 22"
+                              fill="currentColor"
+                              aria-hidden="true"
+                            >
+                              <circle cx="6" cy="5" r="1.5" />
+                              <circle cx="12" cy="5" r="1.5" />
+                              <circle cx="6" cy="11" r="1.5" />
+                              <circle cx="12" cy="11" r="1.5" />
+                              <circle cx="6" cy="17" r="1.5" />
+                              <circle cx="12" cy="17" r="1.5" />
+                            </svg>
+                          </button>
+                        </td>
                         <td>
                           <div className="product-info">
                             <img src={p.image || "/images/image1.png"} alt="" />

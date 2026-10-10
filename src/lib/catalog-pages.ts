@@ -7,7 +7,7 @@ export function hasUploadedPage(product: Product) {
 
 export function catalogPages(products: Product[]) {
   const lastPage = Math.max(...pages.map((page) => page.number));
-  return [
+  const result = [
     ...pages,
     ...products.filter(hasUploadedPage).map((product, index) => ({
       number: lastPage + index + 1,
@@ -17,4 +17,16 @@ export function catalogPages(products: Product[]) {
       regions: [{ key: product.id, bounds: [0, 0, 1, 1] }],
     })),
   ];
+  const positions = new Map(
+    products.map((p, index) => [p.catalogKey || p.id, index]),
+  );
+  const rank = (page: (typeof result)[number]) =>
+    page.regions.length
+      ? Math.min(
+          ...page.regions.map(
+            (r) => positions.get(r.key) ?? Number.MAX_SAFE_INTEGER,
+          ),
+        )
+      : -1;
+  return result.sort((a, b) => rank(a) - rank(b) || a.number - b.number);
 }

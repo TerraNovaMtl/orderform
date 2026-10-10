@@ -1637,3 +1637,32 @@ html[lang="fr"] .review-table th:last-child {
     height: 42px;
   }
 }
+
+.sortable-products-table th:first-child,
+.sortable-products-table .product-drag-cell {
+  width: 40px;
+  padding: 8px;
+}
+.product-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 34px;
+  padding: 4px;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid transparent;
+  cursor: grab;
+}
+.product-drag-handle:hover {
+  background: #edf3f1;
+  color: var(--navy);
+}
+.product-drag-handle:active {
+  cursor: grabbing;
+}
+.product-drop-target {
+  background: #edf3f1;
+  box-shadow: inset 0 2px #276653;
+}

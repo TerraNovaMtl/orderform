@@ -6,6 +6,7 @@ import {
   listCategories,
   saveCategory,
   deleteCategory,
+  reorderProducts,
   listProducts,
   listCompanies,
   saveCompany,
@@ -69,6 +70,13 @@ export async function POST(req: Request) {
     const body = await readJson(req);
     let result;
     switch (body.action) {
+      case "reorderProducts":
+        result = await reorderProducts(
+          z.array(z.uuid()).max(5000).parse(body.ids),
+          z.array(z.uuid()).max(5000).parse(body.expectedIds),
+          actor,
+        );
+        break;
       case "deleteCategory":
         result = await deleteCategory(
           z.uuid().parse(body.id),

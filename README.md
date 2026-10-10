@@ -184,3 +184,7 @@ Migration `005_categories.sql` adds the category list and seeds existing product
 ### Order update emails
 
 Apply migration `006_order_update_emails.sql` before deploying the order update resend flow. After saving an order, admins can choose to send an update and add optional comments that appear only in the email. Update emails go to the original confirmation recipients with the agent copied, and use the subject `Order update — [reference]`. Each saved revision can be queued once; the queue preserves that revision's order details and comments for retries. The existing local test-recipient redirect still applies.
+
+### Product display order
+
+Apply migration `007_product_order.sql` before deploying sortable products. The Products tab's left-hand handles save the display order automatically; Up/Down arrow keys on a handle also move a product. Reordering filtered results preserves hidden products' positions. New products append to the list. Customer catalogue pages follow product order, with the cover first and products sharing a PDF page kept together. Concurrent changes reject stale reorder requests rather than overwriting another admin's sequence.

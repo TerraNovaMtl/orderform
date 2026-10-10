@@ -217,7 +217,7 @@ export async function listProducts(vendor?: string): Promise<Product[]> {
   const a = vendor ? await agentByCode(vendor) : null;
   const sql = db();
   const rows =
-    await sql`select p.*, coalesce((select json_agg(a.code order by a.code) from terranova.product_agents pa join terranova.agents a on a.id=pa.agent_id where pa.product_id=p.id),'[]'::json) as agent_codes from terranova.products p where p.archived=false ${a ? sql`and (p.company_id is null or p.company_id=${a.company_id}) and p.status<>'hidden' and (not p.restricted or exists(select 1 from terranova.product_agents pa where pa.product_id=p.id and pa.agent_id=${a.id}))` : sql``} order by p.category,p.name`;
+    await sql`select p.*, coalesce((select json_agg(a.code order by a.code) from terranova.product_agents pa join terranova.agents a on a.id=pa.agent_id where pa.product_id=p.id),'[]'::json) as agent_codes from terranova.products p where p.archived=false ${a ? sql`and (p.company_id is null or p.company_id=${a.company_id}) and p.status<>'hidden' and (not p.restricted or exists(select 1 from terranova.product_agents pa where pa.product_id=p.id and pa.agent_id=${a.id}))` : sql``} order by p.sort_order,p.id`;
   const mappings =
     a && rows.length
       ? await sql`select product_id,product_key from terranova.catalog_imports where catalog_key='fma-2026' and product_id in ${sql(rows.map((r) => r.id))}`
@@ -235,6 +235,7 @@ export async function listProducts(vendor?: string): Promise<Product[]> {
 export async function saveProduct(input: unknown, actor: string) {
   const p = productSchema.parse(input);
   return db().begin(async (tx) => {
+    await tx`select pg_advisory_xact_lock(872391102)`;
     const [category] =
       await tx`select id from terranova.categories where name_en=${p.category} for share`;
     if (!category)
@@ -265,7 +266,7 @@ export async function saveProduct(input: unknown, actor: string) {
     };
     const [row] = p.id
       ? await tx`update terranova.products set ${tx(v)}, version=version+1, updated_at=now() where id=${p.id} and version=${p.version ?? 0} and archived=false returning id`
-      : await tx`insert into terranova.products ${tx(v)} returning id`;
+      : await tx`insert into terranova.products ${tx({ ...v, sort_order: Number((await tx`select coalesce(max(sort_order),0)+1 as position from terranova.products`)[0].position) })} returning id`;
     if (!row) throw new AppError("Product changed. Reload before saving.", 409);
     await tx`delete from terranova.product_agents where product_id=${row.id}`;
     for (const a of agents)
@@ -610,5 +611,36 @@ export async function resendOrderUpdate(
         recipients,
       });
     return { queued };
+  });
+}
+
+export async function reorderProducts(
+  ids: string[],
+  expectedIds: string[],
+  actor: string,
+) {
+  return db().begin(async (tx) => {
+    await tx`select pg_advisory_xact_lock(872391102)`;
+    const rows =
+      await tx`select id from terranova.products where archived=false order by sort_order,id for update`;
+    const currentIds = rows.map((r) => r.id);
+    if (
+      new Set(ids).size !== ids.length ||
+      ids.length !== currentIds.length ||
+      ids.some((id) => !currentIds.includes(id))
+    )
+      throw new AppError(
+        "The product list changed. Reload before reordering.",
+        409,
+      );
+    if (JSON.stringify(currentIds) !== JSON.stringify(expectedIds))
+      throw new AppError(
+        "The product order changed. Reload before reordering.",
+        409,
+      );
+    for (let position = 0; position < ids.length; position++)
+      await tx`update terranova.products set sort_order=${position + 1} where id=${ids[position]}`;
+    await audit(tx, actor, "products.reordered", "catalog", { ids });
+    return { ok: true };
   });
 }

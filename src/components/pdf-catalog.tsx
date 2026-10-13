@@ -83,7 +83,7 @@ export function PdfCatalog({
           <section
             className="card pdf-page-card"
             key={page.number}
-            aria-label={`PDF page ${page.number}`}
+            aria-label={`${t("Page")} ${pageIndex + 1}`}
           >
             <div
               className="pdf-reader-stage"
@@ -152,7 +152,7 @@ export function PdfCatalog({
               >
                 <img
                   src={page.image}
-                  alt={`Original Terra Nova catalogue page ${page.number}`}
+                  alt={`Terra Nova ${t("Page")} ${pageIndex + 1}`}
                   loading="lazy"
                   onLoad={(e) => {
                     const { naturalWidth: width, naturalHeight: height } =
@@ -228,15 +228,14 @@ export function PdfCatalog({
                   value={currentPage?.number ?? ""}
                   onChange={(e) => setPageNumber(Number(e.target.value))}
                 >
-                  {visiblePages.map((page) => (
+                  {visiblePages.map((page, index) => (
                     <option key={page.number} value={page.number}>
-                      {page.number}
+                      {index + 1}
                     </option>
                   ))}
                 </select>
                 <span>
-                  {t("of")} {pages.length}
-                  {` · ${visiblePages.length} ${t("visible pages")}`}
+                  {t("of")} {visiblePages.length}
                 </span>
               </label>
             </nav>

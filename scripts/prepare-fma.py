@@ -63,13 +63,6 @@ with pdfplumber.open(PDF) as pdf:
  # Consolidate shipper-selected styles while retaining source identifiers.
  sweater=next(p for p in records if p['key']=='row-10')
  sweater.update(orderUnit='pack',unitsPerOrder=36,description='Assorted styles, colours and sizes selected by the shipper. One pack contains 36 items.')
- quilts=[p for p in records if 22<=p['source']['excelRow']<=26]
- quilt=quilts[0]
- quilt_skus=[p['sku'] for p in quilts]
- quilt.update(name='3-PC Quilt Set - DQ - Assorted',style='Assorted styles selected by shipper',sku=' / '.join(p['sku'] for p in quilts),description='Assorted quilt styles selected by the shipper. One case contains 4 sets.')
- quilt['source']['excelRows']=[22,23,24,25,26]
- quilt['source']['ctSkus']=quilt_skus
- records=[p for p in records if p not in quilts[1:]]
  # Canadian Tire logo, extracted from the supplied soccer page header.
  p=pdf.pages[2];p.crop((p.width*.81,p.height*.008,p.width*.985,p.height*.115)).to_image(resolution=160).original.save(ROOT/'public/images/canadian-tire.png')
 manifest=dict(catalogKey='fma-2026',company='Canadian Tire',sources={PDF.name:hashlib.sha256(PDF.read_bytes()).hexdigest(),XLS.name:hashlib.sha256(XLS.read_bytes()).hexdigest()},products=records)

@@ -1,7 +1,9 @@
 "use client";
+import styles from "./pdf-catalog.module.css";
 import { useLanguage } from "./language";
 import { useEffect, useState } from "react";
 import { catalogPages, hasUploadedPage } from "@/lib/catalog-pages";
+import { matchesProductSearch } from "@/lib/product-search";
 import { dealerPrice, type Product } from "@/lib/domain";
 import { Modal } from "./shared";
 
@@ -40,10 +42,7 @@ export function PdfCatalog({
       .map((p) => [p.catalogKey || p.id, p]),
   );
   if (!byKey.size) return null;
-  const matches = (p: Product) =>
-    `${t(p.name)} ${p.sku} ${t(p.category)} ${p.style}`
-      .toLowerCase()
-      .includes(search.toLowerCase());
+  const matches = (p: Product) => matchesProductSearch(p, search, t);
   const visiblePages = pages.filter(
     (page) =>
       (!categoryFilterActive || page.regions.length > 0) &&
@@ -81,15 +80,17 @@ export function PdfCatalog({
         if (page.regions.length && !regions.length) return null;
         return (
           <section
-            className="card pdf-page-card"
+            className="pdf-page-card"
+            style={{ marginBottom: 0 }}
             key={page.number}
             aria-label={`${t("Page")} ${pageIndex + 1}`}
           >
             <div
-              className="pdf-reader-stage"
+              className={`pdf-reader-stage ${styles.stage}${regions.length > 2 ? ` ${styles.multiple}` : ""}`}
               style={{
                 position: "relative",
-                padding: "0 clamp(64px, 8vw, 94px)",
+                width: `min(100%, calc(${(82 * page.width) / page.height}vh + var(--pdf-left-space) + var(--pdf-right-space)))`,
+                margin: "0 auto",
               }}
             >
               <button
@@ -136,11 +137,6 @@ export function PdfCatalog({
                   →
                 </span>
               </button>
-              {regions.length > 0 && (
-                <div className="pdf-add-hint">
-                  {t("Click image to add to cart")}
-                </div>
-              )}
               <div
                 className="pdf-page-sheet"
                 style={{
@@ -167,55 +163,90 @@ export function PdfCatalog({
                   height={page.height}
                   style={{ display: "block", width: "100%", height: "auto" }}
                 />
-                {regions.slice(0, 1).map(({ key, bounds, product }) => (
+                {page.number === 1 && pageIndex < visiblePages.length - 1 && (
                   <button
-                    key={key}
                     type="button"
-                    className={`pdf-product-region${qty[product.id] > 0 ? " selected" : ""}`}
-                    style={{
-                      position: "absolute",
-                      display: "block",
-                      boxSizing: "border-box",
-                      padding: 0,
-                      margin: 0,
-                      background: "transparent",
-                      border:
-                        qty[product.id] > 0
-                          ? "2px solid #276653"
-                          : "2px solid transparent",
-                      cursor:
-                        product.status === "available" ? "pointer" : "default",
-                      zIndex: 1,
-                      left: `${bounds[0] * 100}%`,
-                      top: `${bounds[1] * 100}%`,
-                      width: `${(bounds[2] - bounds[0]) * 100}%`,
-                      height: `${(bounds[3] - bounds[1]) * 100}%`,
-                    }}
-                    disabled={
-                      product.status !== "available" ||
-                      qty[product.id] >= 100000
-                    }
-                    aria-label={
-                      regions.length > 1
-                        ? t("Choose Twin or Queen comforter")
-                        : `${t("Add")} ${t(product.name)} ${t("to cart")}`
-                    }
-                    title={`${t(product.name)} · ${moneyFormat(dealerPrice(product))} ${t("per unit")} · ${product.unitsPerOrder} ${t(product.unitLabel)} / ${t(product.orderUnit)}`}
+                    className={styles.coverNext}
+                    aria-label={t("Next catalogue page")}
+                    title={t("Next catalogue page")}
                     onClick={() =>
-                      regions.length > 1
-                        ? setChoices(regions.map((r) => r.product))
-                        : select(product)
+                      setPageNumber(visiblePages[pageIndex + 1].number)
                     }
-                  >
-                    {qty[product.id] > 0 && (
-                      <span>
-                        {qty[product.id]} {t(product.orderUnit)}
-                        {qty[product.id] === 1 ? "" : "s"} {t("in cart")}
-                      </span>
-                    )}
-                  </button>
-                ))}
+                  />
+                )}
+                {(page.number === 13 ? regions : regions.slice(0, 1)).map(
+                  ({ key, bounds, product }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      className={`pdf-product-region${qty[product.id] > 0 ? " selected" : ""}`}
+                      style={{
+                        position: "absolute",
+                        display: "block",
+                        boxSizing: "border-box",
+                        padding: 0,
+                        margin: 0,
+                        background: "transparent",
+                        border:
+                          qty[product.id] > 0
+                            ? "2px solid #276653"
+                            : "2px solid transparent",
+                        cursor:
+                          product.status === "available"
+                            ? "pointer"
+                            : "default",
+                        zIndex: 1,
+                        left: `${bounds[0] * 100}%`,
+                        top: `${bounds[1] * 100}%`,
+                        width: `${(bounds[2] - bounds[0]) * 100}%`,
+                        height: `${(bounds[3] - bounds[1]) * 100}%`,
+                      }}
+                      disabled={
+                        product.status !== "available" ||
+                        qty[product.id] >= 100000
+                      }
+                      aria-label={
+                        regions.length > 1 && page.number !== 13
+                          ? t("Choose Twin or Queen comforter")
+                          : `${t("Add")} ${t(product.name)} ${t("to cart")}`
+                      }
+                      title={`${t(product.name)} · ${moneyFormat(dealerPrice(product))} ${t("per unit")} · ${product.unitsPerOrder} ${t(product.unitLabel)} / ${t(product.orderUnit)}`}
+                      onClick={() =>
+                        regions.length > 1 && page.number !== 13
+                          ? setChoices(regions.map((r) => r.product))
+                          : select(product)
+                      }
+                    >
+                      {qty[product.id] > 0 && (
+                        <span>
+                          {qty[product.id]} {t(product.orderUnit)}
+                          {qty[product.id] === 1 ? "" : "s"} {t("in cart")}
+                        </span>
+                      )}
+                    </button>
+                  ),
+                )}
               </div>
+              {regions.length > 0 && (
+                <div className={`pdf-page-cart-controls ${styles.controls}`}>
+                  {regions.map(({ key, product }) => (
+                    <div className={styles.control} key={key}>
+                      {regions.length > 1 && (
+                        <span className={styles.label}>
+                          {product.catalogKey === "row-19"
+                            ? t("Twin")
+                            : product.catalogKey === "row-20"
+                              ? t("Queen")
+                              : page.number === 13
+                                ? t(product.style)
+                                : t(product.name)}
+                        </span>
+                      )}
+                      {controls(product)}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <nav
               className="pdf-page-navigation pdf-bottom-pages"
@@ -302,20 +333,72 @@ export function PdfCatalog({
 
 export function CatalogInstructions() {
   const { t } = useLanguage();
+  const [dismissed, setDismissed] = useState(true);
+  if (dismissed)
+    return (
+      <button
+        type="button"
+        className={styles.reopenHelp}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          width: "100%",
+          padding: "6px 16px",
+          marginBottom: 18,
+          background: "#fff7ef",
+          color: "var(--navy)",
+          border: "1px solid #e6c9b7",
+          borderLeft: "4px solid var(--orange)",
+          borderRadius: 9,
+          fontSize: 12,
+        }}
+        aria-expanded={false}
+        onClick={() => setDismissed(false)}
+      >
+        {t("How to order")}
+        <span aria-hidden="true">⌄</span>
+      </button>
+    );
   return (
-    <aside className="catalog-help" aria-label={t("How to order")}>
+    <aside
+      className={`catalog-help ${styles.help}`}
+      style={{ position: "relative" }}
+      aria-label={t("How to order")}
+    >
+      <button
+        type="button"
+        className={styles.closeHelp}
+        style={{
+          position: "absolute",
+          top: 8,
+          right: 8,
+          width: 28,
+          height: 28,
+          padding: 0,
+          border: 0,
+          background: "transparent",
+          color: "var(--muted)",
+          fontSize: 20,
+          lineHeight: 1,
+        }}
+        aria-label={t("Close ordering instructions")}
+        onClick={() => setDismissed(true)}
+      >
+        <span aria-hidden="true">×</span>
+      </button>
       <h3>{t("Click the catalogue to order")}</h3>
       <ol>
         <li>
-          <strong>{t("Click anywhere on the page.")}</strong>
+          <strong>{t("Click anywhere on the page.")}</strong>{" "}
           {t("Order by the case.")}
         </li>
         <li>
-          <strong>{t("Need more?")}</strong>
+          <strong>{t("Need more?")}</strong>{" "}
           {t("Click it again to add another pack or case.")}
         </li>
         <li>
-          <strong>{t("Browse the catalogue.")}</strong>
+          <strong>{t("Browse the catalogue.")}</strong>{" "}
           {t("Use the left and right arrows to turn pages.")}
         </li>
       </ol>

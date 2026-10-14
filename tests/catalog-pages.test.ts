@@ -57,3 +57,25 @@ test("catalogue follows product order while keeping cover first and shared pages
   assert.equal(result[3].number, 2);
   assert.equal(result.filter((page) => page.number === 11).length, 1);
 });
+
+test("each quilt SKU has its own non-overlapping clickable region on the shared page", () => {
+  const quilts = Array.from({ length: 5 }, (_, i) => ({
+    ...product,
+    id: `quilt-${i}`,
+    sku: String(6463181 + i),
+    catalogKey: `row-${22 + i}`,
+  }));
+  const result = catalogPages(quilts);
+  const page = result.find((p) => p.number === 13)!;
+  assert.deepEqual(
+    page.regions.map((r) => r.key),
+    quilts.map((p) => p.catalogKey),
+  );
+  assert.equal(result.filter((p) => p.number === 13).length, 1);
+  for (const [i, region] of page.regions.entries()) {
+    assert.ok(region.bounds[0] < region.bounds[2]);
+    assert.ok(region.bounds[1] < region.bounds[3]);
+    assert.ok(region.bounds.every((bound) => bound >= 0 && bound <= 1));
+    if (i > 0) assert.ok(page.regions[i - 1].bounds[2] <= region.bounds[0]);
+  }
+});

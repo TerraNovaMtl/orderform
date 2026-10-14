@@ -1098,9 +1098,6 @@ dialog::backdrop {
     font-size: 22px;
   }
 }
-.pdf-reader-stage {
-  background: #f4f3ef;
-}
 
 .review-table {
   width: 100%;

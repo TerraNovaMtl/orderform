@@ -14,6 +14,7 @@ import {
 } from "@/lib/domain";
 import { Modal, OrderReceipt, request } from "./shared";
 import { hasUploadedPage } from "@/lib/catalog-pages";
+import { matchesProductSearch } from "@/lib/product-search";
 import { CatalogInstructions, PdfCatalog } from "./pdf-catalog";
 export function Catalog({
   code,
@@ -380,9 +381,7 @@ export function Catalog({
     (p) => !hiddenCategories.includes(p.category),
   );
   const shown = categoryProducts.filter((p) =>
-    `${t(p.name)} ${p.sku} ${t(p.category)} ${p.style}`
-      .toLowerCase()
-      .includes(search.toLowerCase()),
+    matchesProductSearch(p, search, t),
   );
   const tableProducts = shown.filter(
     (p) => !p.catalogKey && !hasUploadedPage(p),
@@ -407,7 +406,7 @@ export function Catalog({
       [id]: Math.min(100000, Math.max(0, value)),
     }));
   }
-  function cartControl(p: Product, disabled = false) {
+  function cartControl(p: Product, disabled = false, compact = false) {
     if (p.status !== "available")
       return <span className="badge">{t("Unavailable")}</span>;
     if (!(qty[p.id] > 0))
@@ -419,7 +418,13 @@ export function Catalog({
           aria-label={`${t("Add")} ${t(p.name)} ${t("to cart")}`}
           onClick={() => setProductQty(p.id, p.minimumOrder ?? 1)}
         >
-          {t("Add to Cart")}
+          {compact ? (
+            <>
+              <span aria-hidden="true">+</span> {t("Add")}
+            </>
+          ) : (
+            t("Add to Cart")
+          )}
         </button>
       );
     return (
@@ -499,43 +504,67 @@ export function Catalog({
           </div>
           <div className="catalog-view-frame">
             <CatalogInstructions />
-            <div className="catalog-view-toolbar">
-              <CategoryFilter
-                categories={availableCategories}
-                excluded={hiddenCategories}
-                onChange={setHiddenCategories}
+            <div className="card" style={{ background: "#f4f3ef" }}>
+              <div
+                className="catalog-view-toolbar"
+                style={{
+                  background: "transparent",
+                  border: 0,
+                  borderRadius: 0,
+                  marginBottom: 0,
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                }}
+              >
+                <span
+                  style={{
+                    color: "#9d4927",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    flex: 1,
+                    textAlign: "center",
+                  }}
+                >
+                  {t("Click image to add to cart")}
+                </span>
+                <CategoryFilter
+                  categories={availableCategories}
+                  excluded={hiddenCategories}
+                  onChange={setHiddenCategories}
+                />
+              </div>
+              {!shown.length && (
+                <div className="empty">
+                  {products.length
+                    ? t("No products match your search or selected categories.")
+                    : t(
+                        "Your agent’s catalog is being prepared. Please contact your vendor.",
+                      )}
+                </div>
+              )}
+              <PdfCatalog
+                products={categoryProducts}
+                allProducts={products}
+                categoryFilterActive={availableCategories.some((category) =>
+                  hiddenCategories.includes(category),
+                )}
+                search={search}
+                qty={qty}
+                controls={(p) => cartControl(p, false, true)}
+                add={(p) =>
+                  setQty((current) => ({
+                    ...current,
+                    [p.id]: Math.min(
+                      100000,
+                      current[p.id] > 0
+                        ? current[p.id] + 1
+                        : (p.minimumOrder ?? 1),
+                    ),
+                  }))
+                }
               />
             </div>
-            {!shown.length && (
-              <div className="empty">
-                {products.length
-                  ? t("No products match your search or selected categories.")
-                  : t(
-                      "Your agent’s catalog is being prepared. Please contact your vendor.",
-                    )}
-              </div>
-            )}
-            <PdfCatalog
-              products={categoryProducts}
-              allProducts={products}
-              categoryFilterActive={availableCategories.some((category) =>
-                hiddenCategories.includes(category),
-              )}
-              search={search}
-              qty={qty}
-              controls={cartControl}
-              add={(p) =>
-                setQty((current) => ({
-                  ...current,
-                  [p.id]: Math.min(
-                    100000,
-                    current[p.id] > 0
-                      ? current[p.id] + 1
-                      : (p.minimumOrder ?? 1),
-                  ),
-                }))
-              }
-            />
           </div>
           {categories.map((category) => (
             <section className="category card" key={category}>

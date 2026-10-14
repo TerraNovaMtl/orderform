@@ -12,6 +12,9 @@ selected_pages = next((set(map(int, arg.split('=',1)[1].split(','))) for arg in 
 # Full item and colour-label hit areas, reviewed against the intact pages.
 color_areas = {3:(.02,.32,.80,.595),4:(.02,.29,.85,.66),15:(.02,.26,.85,.66),16:(.02,.545,.98,.765),17:(.02,.545,.98,.77),18:(.02,.55,.98,.78),19:(.02,.54,.98,.765),20:(.02,.53,.98,.76),21:(.03,.55,.72,.78),22:(.04,.32,.80,.66),23:(.02,.29,.84,.59),24:(.02,.30,.84,.595),25:(.02,.30,.86,.60),26:(.02,.30,.86,.61)}
 def hit_area(product):
+    if product["source"]["pdfPage"] == 13:
+        index = product["source"]["excelRow"] - 22
+        return [.025 + index * .192, .12, .205 + index * .192, .94]
     return [0,0,1,1]
 with pdfplumber.open(ROOT/'data/Terra_Nova_FMA_Products_2026.pdf') as pdf:
     for number, page in enumerate(pdf.pages, 1):

@@ -1,4 +1,5 @@
 "use client";
+import { isValidPhone, PHONE_FORMAT_MESSAGE } from "@/lib/phone";
 import { CategoryFilter } from "./category-filter";
 import { useLanguage } from "./language";
 import { useEffect, useState } from "react";
@@ -47,6 +48,12 @@ export function Catalog({
     [receipt, setReceipt] = useState<Order | null>(null),
     [search, setSearch] = useState(""),
     [lightbox, setLightbox] = useState<Product | null>(null);
+  const [removedItems, setRemovedItems] = useState<
+    { product: Product; quantity: number }[]
+  >([]);
+  useEffect(() => {
+    setRemovedItems([]);
+  }, [store?.id, receipt?.id, code]);
   const [hiddenCategories, setHiddenCategories] = useState<string[]>([]);
   const draftKey = `tn-draft-${code.toUpperCase()}`;
   useEffect(() => {
@@ -406,6 +413,43 @@ export function Catalog({
       [id]: Math.min(100000, Math.max(0, value)),
     }));
   }
+  function removeCartItem(product: Product, quantity: number) {
+    setRemovedItems((current) => [...current, { product, quantity }]);
+    setProductQty(product.id, 0);
+  }
+  const removedItem = removedItems.at(-1);
+  const undoToast = removedItem && (
+    <div className={`cart-undo-toast${review ? " in-review" : ""}`}>
+      <span role="status" aria-live="polite" aria-atomic="true">
+        {t(removedItem.product.name)} {t("removed from cart.")}
+      </span>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => {
+          setQty((current) => ({
+            ...current,
+            [removedItem.product.id]: Math.min(
+              100000,
+              (current[removedItem.product.id] || 0) + removedItem.quantity,
+            ),
+          }));
+          setRemovedItems((current) => current.slice(0, -1));
+        }}
+      >
+        {t("Undo")}
+      </button>
+      <button
+        type="button"
+        className="text-button"
+        disabled={busy}
+        aria-label={t("Dismiss notification")}
+        onClick={() => setRemovedItems((current) => current.slice(0, -1))}
+      >
+        <span aria-hidden="true">×</span>
+      </button>
+    </div>
+  );
   function cartControl(p: Product, disabled = false, compact = false) {
     if (p.status !== "available")
       return <span className="badge">{t("Unavailable")}</span>;
@@ -530,6 +574,14 @@ export function Catalog({
                 </span>
                 <CategoryFilter
                   categories={availableCategories}
+                  counts={products.reduce<Record<string, number>>(
+                    (counts, product) => {
+                      counts[product.category] =
+                        (counts[product.category] ?? 0) + 1;
+                      return counts;
+                    },
+                    {},
+                  )}
                   excluded={hiddenCategories}
                   onChange={setHiddenCategories}
                 />
@@ -676,11 +728,21 @@ export function Catalog({
             {t("Phone (optional)")}
             <input
               type="tel"
+              autoComplete="tel"
+              aria-invalid={!isValidPhone(contactPhone)}
+              aria-describedby={
+                !isValidPhone(contactPhone) ? "cart-phone-error" : undefined
+              }
               maxLength={80}
               value={contactPhone}
               onChange={(e) => setContactPhone(e.target.value)}
             />
           </label>
+          {!isValidPhone(contactPhone) && (
+            <p id="cart-phone-error" className="error" role="alert">
+              {t(PHONE_FORMAT_MESSAGE)}
+            </p>
+          )}
           <label>
             {t("Order notes")}
             <textarea
@@ -698,11 +760,23 @@ export function Catalog({
           )}
           <button
             className="full"
-            disabled={!lines.length}
+            disabled={!lines.length || !isValidPhone(contactPhone)}
+            aria-describedby={
+              !lines.length
+                ? "cart-review-hint"
+                : !isValidPhone(contactPhone)
+                  ? "cart-phone-error"
+                  : undefined
+            }
             onClick={() => setReview(true)}
           >
             {t("Review order →")}
           </button>
+          {!lines.length && (
+            <p id="cart-review-hint" className="continue-hint">
+              {t("Add a product to continue.")}
+            </p>
+          )}
           <h3 className="cart-items-heading">{t("Selected items")}</h3>
           {lines.length ? (
             lines.map((l) => (
@@ -726,9 +800,7 @@ export function Catalog({
                     className="text-button danger remove-cart-item"
                     aria-label={`${t("Remove")} ${t(l.p.name)} ${t("from cart")}`}
                     title={t("Remove item")}
-                    onClick={() =>
-                      setQty((current) => ({ ...current, [l.p.id]: 0 }))
-                    }
+                    onClick={() => removeCartItem(l.p, l.qty)}
                   >
                     <svg
                       width="16"
@@ -750,6 +822,7 @@ export function Catalog({
           ) : (
             <p className="empty">{t("Choose products to start your order.")}</p>
           )}
+          {!review && undoToast}
         </aside>
       </main>
       {review && (
@@ -764,73 +837,81 @@ export function Catalog({
             <br />
             {store.firstName} {store.lastName} · {store.email}
           </p>
-          <table className="review-table">
-            <thead>
-              <tr>
-                <th scope="col">{t("Product")}</th>
-                <th scope="col">{t("Quantity")}</th>
-                <th scope="col">{t("Delete")}</th>
-                <th scope="col" className="review-price">
-                  {t("Line total")}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {lines.map((l) => (
-                <tr key={l.p.id}>
-                  <td>
-                    <div className="receipt-product review-product">
-                      {l.p.image && (
-                        <img
-                          className="receipt-thumbnail review-thumbnail"
-                          src={l.p.image}
-                          alt={t(l.p.name)}
-                          width={44}
-                          height={56}
-                        />
-                      )}
-                      <div>
-                        {t(l.p.name)}
-                        {l.p.sku && <small>SKU: {l.p.sku}</small>}
-                        <small>
-                          {l.qty} {t(l.p.orderUnit)} ·{" "}
-                          {l.qty * l.p.unitsPerOrder} {t(l.p.unitLabel)}
-                        </small>
-                      </div>
-                    </div>
-                  </td>
-                  <td>{cartControl(l.p, busy)}</td>
-                  <td className="review-delete">
-                    <button
-                      type="button"
-                      className="text-button danger"
-                      disabled={busy}
-                      aria-label={`${t("Remove")} ${t(l.p.name)} ${t("from review")}`}
-                      title={t("Remove item")}
-                      onClick={() => setProductQty(l.p.id, 0)}
-                    >
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        aria-hidden="true"
-                      >
-                        <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
-                      </svg>
-                    </button>
-                  </td>
-                  <td className="review-price">
-                    <strong>{money(l.lineDealer)}</strong>
-                  </td>
+          <div
+            className="review-table-scroll"
+            role="region"
+            aria-label={t("Order items")}
+            tabIndex={0}
+          >
+            <table className="review-table">
+              <thead>
+                <tr>
+                  <th scope="col">{t("Product")}</th>
+                  <th scope="col">{t("Quantity")}</th>
+                  <th scope="col">{t("Delete")}</th>
+                  <th scope="col" className="review-price">
+                    {t("Line total")}
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {lines.map((l) => (
+                  <tr key={l.p.id}>
+                    <td>
+                      <div className="receipt-product review-product">
+                        {l.p.image && (
+                          <img
+                            className="receipt-thumbnail review-thumbnail"
+                            src={l.p.image}
+                            alt={t(l.p.name)}
+                            width={44}
+                            height={56}
+                          />
+                        )}
+                        <div>
+                          {t(l.p.name)}
+                          {l.p.sku && <small>SKU: {l.p.sku}</small>}
+                          <small>
+                            {l.qty} {t(l.p.orderUnit)} ·{" "}
+                            {l.qty * l.p.unitsPerOrder} {t(l.p.unitLabel)}
+                          </small>
+                        </div>
+                      </div>
+                    </td>
+                    <td>{cartControl(l.p, busy)}</td>
+                    <td className="review-delete">
+                      <button
+                        type="button"
+                        className="text-button danger"
+                        disabled={busy}
+                        aria-label={`${t("Remove")} ${t(l.p.name)} ${t("from review")}`}
+                        title={t("Remove item")}
+                        onClick={() => removeCartItem(l.p, l.qty)}
+                      >
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
+                        </svg>
+                      </button>
+                    </td>
+                    <td className="review-price">
+                      <strong>{money(l.lineDealer)}</strong>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {undoToast}
           {!lines.length && (
             <p className="empty" role="status">
               Your cart is empty. Close this review to add products.
@@ -839,13 +920,14 @@ export function Catalog({
           <div className="receipt-total" aria-live="polite">
             {t("Total")} <strong>{money(total)}</strong>
           </div>
-          {customerPo && <p>PO: {customerPo}</p>}
-          {contactPhone && (
-            <p>
-              {t("Phone:")} {contactPhone}
-            </p>
-          )}
-          {comments && <p>{comments}</p>}
+          <dl className="review-order-details">
+            <dt>{t("PO number")}</dt>
+            <dd>{customerPo || "—"}</dd>
+            <dt>{t("Phone")}</dt>
+            <dd>{contactPhone || "—"}</dd>
+            <dt>{t("Order notes")}</dt>
+            <dd>{comments || "—"}</dd>
+          </dl>
           {error && (
             <p className="error" role="alert">
               {t(error)}
@@ -854,9 +936,23 @@ export function Catalog({
           <p className="muted">
             {t("Your order will be recorded when you confirm.")}
           </p>
-          <button disabled={busy || !lines.length} onClick={submit}>
-            {busy ? t("Recording order…") : t("Confirm and submit order")}
-          </button>
+          <div className="actions review-actions">
+            <button
+              type="button"
+              className="secondary"
+              disabled={busy}
+              onClick={() => setReview(false)}
+            >
+              {t("Back to catalogue")}
+            </button>
+            <button
+              type="button"
+              disabled={busy || !lines.length}
+              onClick={submit}
+            >
+              {busy ? t("Recording order…") : t("Confirm and submit order")}
+            </button>
+          </div>
         </Modal>
       )}
       {lightbox && (

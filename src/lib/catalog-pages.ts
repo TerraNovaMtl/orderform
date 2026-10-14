@@ -30,3 +30,12 @@ export function catalogPages(products: Product[]) {
       : -1;
   return result.sort((a, b) => rank(a) - rank(b) || a.number - b.number);
 }
+
+// The sheet fits within 82vh and the available viewport width.
+export const CATALOG_IMAGE_SIZES = "(max-width: 768px) 100vw, 600px";
+
+export function catalogPageSrcSet(image: string) {
+  if (!/^\/images\/fma-pages\/page-\d+-1600\.webp$/.test(image))
+    return undefined;
+  return `${image.replace("-1600.webp", "-800.webp")} 800w, ${image} 1600w`;
+}

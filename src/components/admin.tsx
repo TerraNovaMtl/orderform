@@ -421,6 +421,14 @@ export function Admin() {
               <div className="catalog-view-toolbar">
                 <CategoryFilter
                   categories={data.categories.map((c) => c.nameEn)}
+                  counts={data.products.reduce<Record<string, number>>(
+                    (counts, product) => {
+                      counts[product.category] =
+                        (counts[product.category] ?? 0) + 1;
+                      return counts;
+                    },
+                    {},
+                  )}
                   excluded={hiddenProductCategories}
                   onChange={setHiddenProductCategories}
                 />
@@ -1925,6 +1933,7 @@ export function Admin() {
               Phone (optional)
               <input
                 type="tel"
+                autoComplete="tel"
                 maxLength={80}
                 value={order.contactPhone ?? ""}
                 onChange={(e) =>

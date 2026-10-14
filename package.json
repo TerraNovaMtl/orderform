@@ -12,7 +12,8 @@
     "test": "tsx --test tests/*.test.ts",
     "db:inspect": "node --env-file=.env.local scripts/inspect-db.mjs",
     "db:migrate": "node --env-file=.env.local scripts/migrate.mjs",
-    "db:import": "node --env-file=.env.local scripts/import-sheets.mjs"
+    "db:import": "node --env-file=.env.local scripts/import-sheets.mjs",
+    "optimize:pages": "node scripts/optimize-pages.mjs"
   },
   "dependencies": {
     "next": "^16.3.7",

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isValidPhone, PHONE_FORMAT_MESSAGE } from "./phone";
 export const codeSchema = z
   .string()
   .trim()
@@ -73,7 +74,9 @@ export const orderSchema = z
     storeCode: codeSchema,
     comments: text(4000),
     customerPo: text().optional(),
-    contactPhone: text(80).optional(),
+    contactPhone: text(80)
+      .refine(isValidPhone, PHONE_FORMAT_MESSAGE)
+      .optional(),
     idempotencyKey: z.uuid(),
     lines: z
       .array(
@@ -95,7 +98,9 @@ export const editOrderSchema = z
     version: z.number().int().positive(),
     comments: text(4000),
     customerPo: text().optional(),
-    contactPhone: text(80).optional(),
+    contactPhone: text(80)
+      .refine(isValidPhone, PHONE_FORMAT_MESSAGE)
+      .optional(),
     orderSent: z.boolean(),
     invoiceSent: z.boolean(),
     paymentReceived: z.boolean(),

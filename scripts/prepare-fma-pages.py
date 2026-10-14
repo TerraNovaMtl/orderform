@@ -5,7 +5,7 @@ from pathlib import Path
 import pdfplumber
 ROOT = Path(__file__).resolve().parents[1]
 manifest = json.loads((ROOT/'migration-data/fma-2026/manifest.json').read_text())
-out = ROOT/'public/images/fma-pages'
+out = ROOT/'source-art/fma-pages'
 out.mkdir(parents=True, exist_ok=True)
 pages = []
 selected_pages = next((set(map(int, arg.split('=',1)[1].split(','))) for arg in sys.argv if arg.startswith('--pages=')), None)
@@ -24,11 +24,11 @@ with pdfplumber.open(ROOT/'data/Terra_Nova_FMA_Products_2026.pdf') as pdf:
             shutil.copyfile(cover, out/filename)
             with Image.open(cover) as image:
                 width, height = image.size
-            pages.append(dict(number=number, image=f'/images/fma-pages/{filename}', width=width, height=height, regions=[]))
+            pages.append(dict(number=number, image=f'/images/fma-pages/page-{number:02d}-1600.webp', width=width, height=height, regions=[]))
             continue
         if (not (out/filename).exists() or ('--map-only' not in sys.argv and (selected_pages is None or number in selected_pages))):
             page.to_image(resolution=300, antialias=True).original.convert('RGB').save(out/filename, optimize=True)
         regions = [dict(key=p['key'], color=p['source']['color'], bounds=hit_area(p)) for p in manifest['products'] if p['source']['pdfPage']==number]
-        pages.append(dict(number=number, image=f'/images/fma-pages/{filename}', width=page.width, height=page.height, regions=regions))
+        pages.append(dict(number=number, image=f'/images/fma-pages/page-{number:02d}-1600.webp', width=page.width, height=page.height, regions=regions))
 (ROOT/'src/lib/fma-pages.json').write_text(json.dumps(pages, indent=2)+'\n')
 print(f'Rendered {len(pages)} intact pages; {sum(len(p["regions"]) for p in pages)} product regions')

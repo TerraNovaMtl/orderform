@@ -1030,10 +1030,15 @@ dialog::backdrop {
   align-items: center;
   gap: 8px;
   margin: 0;
+  max-width: 100%;
+  flex-wrap: wrap;
   font-size: 13px;
 }
 .pdf-page-navigation select {
-  width: 72px;
+  width: auto;
+  min-width: min(240px, 100%);
+  max-width: 100%;
+  flex: 0 1 auto;
   margin: 0;
 }
 .pdf-page-navigation span {
@@ -1662,4 +1667,116 @@ html[lang="fr"] .review-table th:last-child {
 .product-drop-target {
   background: #edf3f1;
   box-shadow: inset 0 2px #276653;
+}
+
+button.full:disabled {
+  opacity: 1;
+  background: #e5e9e7;
+  border-color: #cdd5cf;
+  color: #4b5b54;
+}
+.continue-hint {
+  margin: 8px 0 16px;
+  color: var(--navy);
+  font-size: 13px;
+}
+
+.cart-undo-toast {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 60;
+  max-width: min(480px, calc(100vw - 32px));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f0f6f2;
+  color: var(--navy);
+  box-shadow: 0 3px 12px #172c3914;
+}
+.cart-undo-toast > span {
+  flex: 1;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.cart-undo-toast button {
+  flex-shrink: 0;
+}
+
+.cart-undo-toast.in-review {
+  position: static;
+  max-width: 100%;
+}
+
+.category-filter-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.category-filter-chip {
+  padding: 4px 9px;
+  border-radius: 16px;
+  background: #e8f0eb;
+  color: var(--navy);
+  font-size: 12px;
+}
+.category-product-count {
+  margin-left: auto;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.category-home-group {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+}
+.category-home-children {
+  padding-left: 24px;
+  border-left: 2px solid var(--line);
+  margin-left: 7px;
+}
+.catalog-category-dropdown .catalog-category-filter {
+  max-height: min(70vh, 500px);
+  overflow-y: auto;
+}
+
+.review-table-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+}
+.review-table-scroll .review-table {
+  min-width: 480px;
+}
+.review-order-details {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px 16px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.review-order-details dt {
+  font-weight: 600;
+}
+.review-order-details dd {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.review-actions {
+  flex-wrap: wrap;
+}
+@media (max-width: 480px) {
+  .review-order-details {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+  .review-order-details dd {
+    margin-bottom: 8px;
+  }
 }

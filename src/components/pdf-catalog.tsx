@@ -2,7 +2,12 @@
 import styles from "./pdf-catalog.module.css";
 import { useLanguage } from "./language";
 import { useEffect, useState } from "react";
-import { catalogPages, hasUploadedPage } from "@/lib/catalog-pages";
+import {
+  catalogPages,
+  catalogPageSrcSet,
+  CATALOG_IMAGE_SIZES,
+  hasUploadedPage,
+} from "@/lib/catalog-pages";
 import { matchesProductSearch } from "@/lib/product-search";
 import { dealerPrice, type Product } from "@/lib/domain";
 import { Modal } from "./shared";
@@ -41,7 +46,6 @@ export function PdfCatalog({
       .filter((p) => p.catalogKey || hasUploadedPage(p))
       .map((p) => [p.catalogKey || p.id, p]),
   );
-  if (!byKey.size) return null;
   const matches = (p: Product) => matchesProductSearch(p, search, t);
   const visiblePages = pages.filter(
     (page) =>
@@ -58,7 +62,17 @@ export function PdfCatalog({
     visiblePages.findIndex((page) => page.number === pageNumber),
   );
   const currentPage = visiblePages[pageIndex];
-  if (!currentPage) return null;
+  const nextPage = visiblePages[pageIndex + 1];
+  const nextImage = nextPage?.image;
+  const nextSrcSet = nextPage ? catalogPageSrcSet(nextPage.image) : undefined;
+  useEffect(() => {
+    if (!byKey.size || !nextImage) return;
+    const image = new Image();
+    image.sizes = CATALOG_IMAGE_SIZES;
+    if (nextSrcSet) image.srcset = nextSrcSet;
+    image.src = nextImage;
+  }, [nextImage, nextSrcSet, byKey.size]);
+  if (!byKey.size || !currentPage) return null;
   function select(p: Product) {
     add(p);
     setMessage(p);
@@ -83,7 +97,7 @@ export function PdfCatalog({
             className="pdf-page-card"
             style={{ marginBottom: 0 }}
             key={page.number}
-            aria-label={`${t("Page")} ${pageIndex + 1}`}
+            aria-label={`${t("Page")} ${page.number}`}
           >
             <div
               className={`pdf-reader-stage ${styles.stage}${regions.length > 2 ? ` ${styles.multiple}` : ""}`}
@@ -148,9 +162,20 @@ export function PdfCatalog({
               >
                 <img
                   src={page.image}
-                  alt={`Terra Nova ${t("Page")} ${pageIndex + 1}`}
-                  loading="lazy"
+                  srcSet={catalogPageSrcSet(page.image)}
+                  sizes={CATALOG_IMAGE_SIZES}
+                  alt={
+                    regions.length
+                      ? [
+                          ...new Set(
+                            regions.map(({ product }) => t(product.name)),
+                          ),
+                        ].join(", ")
+                      : t("Terra Nova Canadian Living Collection")
+                  }
+                  loading="eager"
                   onLoad={(e) => {
+                    if (catalogPageSrcSet(page.image)) return;
                     const { naturalWidth: width, naturalHeight: height } =
                       e.currentTarget;
                     if (width && height)
@@ -252,16 +277,32 @@ export function PdfCatalog({
               className="pdf-page-navigation pdf-bottom-pages"
               aria-label={t("Catalogue pages")}
             >
-              <label>
+              <label
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "auto minmax(0, 1fr) auto",
+                  width: "100%",
+                  maxWidth: 480,
+                }}
+              >
                 {t("Page")}
                 <select
                   aria-label={t("Catalogue page")}
+                  style={{ width: "100%", minWidth: 0, maxWidth: "100%" }}
                   value={currentPage?.number ?? ""}
                   onChange={(e) => setPageNumber(Number(e.target.value))}
                 >
                   {visiblePages.map((page, index) => (
                     <option key={page.number} value={page.number}>
-                      {index + 1}
+                      {index + 1} —{" "}
+                      {[
+                        ...new Set(
+                          page.regions.flatMap((region) => {
+                            const product = byKey.get(region.key);
+                            return product ? [t(product.category)] : [];
+                          }),
+                        ),
+                      ].join(", ") || t("Cover")}
                     </option>
                   ))}
                 </select>

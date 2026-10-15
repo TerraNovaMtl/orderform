@@ -79,3 +79,20 @@ test("each quilt SKU has its own non-overlapping clickable region on the shared 
     if (i > 0) assert.ok(page.regions[i - 1].bounds[2] <= region.bounds[0]);
   }
 });
+
+test("unmapped uploaded hoodies remain browsable after the source pages without search", () => {
+  const hoodie = {
+    ...product,
+    name: "Men's Fleece Hoodies",
+    sku: "6872227",
+    category: "Men's Apparel",
+  };
+  const pages = catalogPages([hoodie]);
+  assert.equal(hasUploadedPage(hoodie), true);
+  const page = pages.find((page) =>
+    page.regions.some((region) => region.key === hoodie.id),
+  );
+  assert.ok(page);
+  assert.equal(page.number, 28);
+  assert.equal(page.image, hoodie.image);
+});

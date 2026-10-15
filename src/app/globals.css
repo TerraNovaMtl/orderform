@@ -296,7 +296,7 @@ footer {
   align-items: center;
   margin-bottom: 25px;
 }
-.section-heading > input {
+.section-heading > .catalog-search {
   width: 240px;
 }
 .category {
@@ -685,7 +685,7 @@ dialog::backdrop {
     align-items: start;
     flex-direction: column;
   }
-  .section-heading > input {
+  .section-heading > .catalog-search {
     width: 100%;
   }
   td,
@@ -1004,8 +1004,15 @@ dialog::backdrop {
   font-size: 12px;
 }
 .pdf-cart-feedback {
-  position: static;
-  z-index: 2;
+  position: fixed;
+  top: 110px;
+  right: 16px;
+  max-width: min(420px, calc(100vw - 32px));
+  margin: 0;
+  z-index: 60;
+  pointer-events: none;
+  overflow-wrap: anywhere;
+  box-shadow: 0 4px 16px #172c3926;
   background: white;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -1779,4 +1786,28 @@ button.full:disabled {
   .review-order-details dd {
     margin-bottom: 8px;
   }
+}
+
+.catalog-search {
+  position: relative;
+}
+.catalog-search input {
+  padding-right: 40px;
+}
+.catalog-search-clear {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--navy);
+  font-size: 22px;
+  line-height: 1;
+}
+.catalog-search-clear:hover {
+  background: var(--paper);
 }

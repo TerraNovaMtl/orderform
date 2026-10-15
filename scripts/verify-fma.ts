@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import postgres from "postgres";
+import labels from "../src/lib/fma-product-labels.json";
 import { productAmounts } from "../src/lib/domain";
 const test = process.argv.includes("--test");
 const url = test ? process.env.DATABASE_URL_TEST : process.env.DATABASE_URL;
@@ -15,6 +16,7 @@ try {
     await sql`select p.*,ci.product_key,c.name as company,i.data from terranova.catalog_imports ci join terranova.products p on p.id=ci.product_id join terranova.companies c on c.id=p.company_id join terranova.images i on '/api/images/'||i.id::text=p.image where ci.catalog_key=${manifest.catalogKey}`;
   assert.equal(rows.length, manifest.products.length);
   for (const raw of manifest.products) {
+    Object.assign(raw, labels[raw.key as keyof typeof labels] ?? {});
     const p = rows.find((r) => r.product_key === raw.key);
     assert.ok(p, raw.key);
     assert.equal(p.company, "Canadian Tire");

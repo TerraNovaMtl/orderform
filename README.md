@@ -53,6 +53,8 @@ Email is suppressed outside `VERCEL_ENV=production` unless `EMAIL_TEST_TO` is ex
 
 ## Images
 
+Header and receipt logos use WebP files, with small PNG variants retained for email attachments. Master copies live in `source-art/logos/` (excluded from deployment). After replacing a master, run `npm run optimize:logos` and commit the generated files in `public/images/` along with the master.
+
 Existing assets are copied to `public/images`. New uploads are limited to PNG/JPEG/WebP/GIF, signature-checked and capped at 2 MB. They are currently stored in Neon and served through immutable `/api/images/:id` URLs, so no additional storage secret is required. For a growing catalog, move this adapter to object storage (e.g. Vercel Blob); database image storage is a deliberate initial tradeoff, not a dependency on GitHub commits. Backups must include images.
 
 ## Migration from Sheets
@@ -191,3 +193,9 @@ Apply migration `006_order_update_emails.sql` before deploying the order update 
 ### Product display order
 
 Apply migration `007_product_order.sql` before deploying sortable products. The Products tab's left-hand handles save the display order automatically; Up/Down arrow keys on a handle also move a product. Reordering filtered results preserves hidden products' positions. New products append to the list. Customer catalogue pages follow product order, with the cover first and products sharing a PDF page kept together. Concurrent changes reject stale reorder requests rather than overwriting another admin's sequence.
+
+### FMA product labels
+
+Reviewed comforter sizes and quilt design names/SKUs live in `src/lib/fma-product-labels.json`. Preparation, import and quilt restoration apply these labels. To update the seven existing products without changing prices, availability or historical order snapshots, preview with `node --env-file=.env.local --import tsx scripts/rename-fma-products.ts`, then add `--apply` (or `--test` for the test database). The script saves a local before-state backup and records audit events. Quilt SKUs retain the CT identifier followed by the manufacturer code.
+
+Men's Fleece Hoodies (6872227) have an uploaded image rather than an FMA mapping, so the catalogue appends them as page 28. They remain browsable through page navigation and the Men's Apparel category without a search.

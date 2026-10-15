@@ -32,11 +32,18 @@ export function PdfCatalog({
   const [imageSizes, setImageSizes] = useState<
     Record<string, { width: number; height: number }>
   >({});
-  const [message, setMessage] = useState<Product | null>(null);
+  const [message, setMessage] = useState<{ product: Product } | null>(null);
+  useEffect(() => {
+    if (!message) return;
+    const timer = window.setTimeout(() => setMessage(null), 3500);
+    return () => window.clearTimeout(timer);
+  }, [message]);
   const [pageNumber, setPageNumber] = useState(1);
+  const [searchPageNumber, setSearchPageNumber] = useState(1);
+  const selectPageNumber = search ? setSearchPageNumber : setPageNumber;
   const [choices, setChoices] = useState<Product[] | null>(null);
   useEffect(() => {
-    setPageNumber(1);
+    setSearchPageNumber(1);
     setMessage(null);
   }, [search]);
   const byKey = new Map(
@@ -56,7 +63,9 @@ export function PdfCatalog({
   );
   const pageIndex = Math.max(
     0,
-    visiblePages.findIndex((page) => page.number === pageNumber),
+    visiblePages.findIndex(
+      (page) => page.number === (search ? searchPageNumber : pageNumber),
+    ),
   );
   const currentPage = visiblePages[pageIndex];
   const nextPage = visiblePages[pageIndex + 1];
@@ -75,13 +84,13 @@ export function PdfCatalog({
   if (!hasCatalogue || !currentPage) return null;
   function select(p: Product) {
     add(p);
-    setMessage(p);
+    setMessage({ product: p });
   }
   return (
     <div className="pdf-catalog">
       {message && (
         <p role="status" className="pdf-cart-feedback">
-          {t(message.name)} {t("added to your cart.")}
+          {t(message.product.name)} {t("added to your cart.")}
         </p>
       )}
       {(currentPage ? [currentPage] : []).map((sourcePage) => {
@@ -113,7 +122,7 @@ export function PdfCatalog({
                 aria-label={t("Previous catalogue page")}
                 disabled={pageIndex === 0}
                 onClick={() =>
-                  setPageNumber(visiblePages[pageIndex - 1].number)
+                  selectPageNumber(visiblePages[pageIndex - 1].number)
                 }
                 style={{
                   position: "absolute",
@@ -135,7 +144,7 @@ export function PdfCatalog({
                 aria-label={t("Next catalogue page")}
                 disabled={pageIndex >= visiblePages.length - 1}
                 onClick={() =>
-                  setPageNumber(visiblePages[pageIndex + 1].number)
+                  selectPageNumber(visiblePages[pageIndex + 1].number)
                 }
                 style={{
                   position: "absolute",
@@ -195,7 +204,7 @@ export function PdfCatalog({
                     aria-label={t("Next catalogue page")}
                     title={t("Next catalogue page")}
                     onClick={() =>
-                      setPageNumber(visiblePages[pageIndex + 1].number)
+                      selectPageNumber(visiblePages[pageIndex + 1].number)
                     }
                   />
                 )}
@@ -290,7 +299,7 @@ export function PdfCatalog({
                   aria-label={t("Catalogue page")}
                   style={{ width: "100%", minWidth: 0, maxWidth: "100%" }}
                   value={currentPage?.number ?? ""}
-                  onChange={(e) => setPageNumber(Number(e.target.value))}
+                  onChange={(e) => selectPageNumber(Number(e.target.value))}
                 >
                   {visiblePages.map((page, index) => (
                     <option key={page.number} value={page.number}>
@@ -317,14 +326,7 @@ export function PdfCatalog({
                 {regions.map(({ key, product }) => (
                   <div className="pdf-page-option" key={key}>
                     <div>
-                      <strong>
-                        {t(product.name)}
-                        {product.catalogKey === "row-19"
-                          ? ` - ${t("Twin")}`
-                          : product.catalogKey === "row-20"
-                            ? ` - ${t("Queen")}`
-                            : ""}
-                      </strong>
+                      <strong>{t(product.name)}</strong>
                       <small>
                         {product.sku} · 1 {t(product.orderUnit)} ={" "}
                         {product.unitsPerOrder} {t(product.unitLabel)}

@@ -15,6 +15,7 @@ color_rows=set(colors)
 colors={} # Customers now order an assorted pack rather than selecting a colour.
 # Photo-only crop rectangles, normalized against PDF page width and height.
 regions={2:(.02,.18,.98,.86),3:(.02,.32,.80,.57),4:(.02,.29,.81,.66),5:(.03,.44,.67,.80),6:(.01,.20,.99,.79),7:(.02,.30,.98,.65),8:(.02,.35,.98,.61),9:(.02,.22,.98,.71),10:(.02,.40,.98,.77),11:(.03,.30,.49,.74),12:(.02,.22,.60,.67),14:(.02,.22,.98,.55),15:(.02,.28,.81,.65),16:(.05,.49,.95,.70),17:(.02,.53,.98,.73),18:(.02,.53,.98,.73),19:(.02,.53,.98,.73),20:(.02,.53,.98,.73),21:(.03,.55,.72,.80),22:(.04,.34,.80,.65),23:(.02,.33,.82,.59),24:(.02,.31,.80,.55),25:(.02,.32,.81,.58),26:(.02,.32,.81,.59),27:(.04,.28,.51,.83)}
+labels=json.loads((ROOT/'src/lib/fma-product-labels.json').read_text())
 records=[]
 with pdfplumber.open(PDF) as pdf:
  for r in range(10,41):
@@ -63,6 +64,8 @@ with pdfplumber.open(PDF) as pdf:
  # Consolidate shipper-selected styles while retaining source identifiers.
  sweater=next(p for p in records if p['key']=='row-10')
  sweater.update(orderUnit='pack',unitsPerOrder=36,description='Assorted styles, colours and sizes selected by the shipper. One pack contains 36 items.')
+ for record in records:
+  if record['key'] in labels:record.update(labels[record['key']])
  # Canadian Tire logo, extracted from the supplied soccer page header.
  p=pdf.pages[2];p.crop((p.width*.81,p.height*.008,p.width*.985,p.height*.115)).to_image(resolution=160).original.save(ROOT/'public/images/canadian-tire.png')
 manifest=dict(catalogKey='fma-2026',company='Canadian Tire',sources={PDF.name:hashlib.sha256(PDF.read_bytes()).hexdigest(),XLS.name:hashlib.sha256(XLS.read_bytes()).hexdigest()},products=records)

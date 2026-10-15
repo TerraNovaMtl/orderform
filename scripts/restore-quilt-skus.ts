@@ -2,6 +2,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import postgres from "postgres";
+import labels from "../src/lib/fma-product-labels.json";
 import { productSchema } from "../src/lib/domain";
 
 const apply = process.argv.includes("--apply");
@@ -14,10 +15,11 @@ const quilts = manifest.products.filter((p: { key: string }) =>
 );
 if (quilts.length !== 5) throw new Error("Expected exactly five quilts");
 for (const [i, p] of quilts.entries()) {
+  Object.assign(p, labels[p.key as keyof typeof labels] ?? {});
   productSchema.parse({ ...p, image: "", status: "available", agentCodes: [] });
   if (
     p.key !== `row-${22 + i}` ||
-    p.sku !== String(6463181 + i) ||
+    p.source.ctSkus[0] !== String(6463181 + i) ||
     p.unitsPerOrder !== 4 ||
     p.source.pdfPage !== 13
   )
@@ -42,7 +44,7 @@ try {
     const records = [];
     for (const p of quilts) {
       const rows =
-        await tx`select p.* from terranova.products p left join terranova.catalog_imports ci on ci.product_id=p.id where p.company_id=${company.id} and (ci.catalog_key='fma-2026' and ci.product_key=${p.key} or p.sku=${p.sku}) for update of p`;
+        await tx`select p.* from terranova.products p left join terranova.catalog_imports ci on ci.product_id=p.id where p.company_id=${company.id} and (ci.catalog_key='fma-2026' and ci.product_key=${p.key} or p.sku=${p.source.ctSkus[0]}) for update of p`;
       if (rows.length !== 1)
         throw new Error(`Ambiguous existing quilt ${p.sku}`);
       const row = rows[0];

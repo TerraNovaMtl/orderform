@@ -46,7 +46,7 @@ export function Brand({
     <header className="brand-header">
       <a className="brand" href={admin ? "/admin" : "/"}>
         <img
-          src="/images/terra-nova-logo.png"
+          src="/images/terra-nova-logo.webp"
           alt="Terra Nova"
           width={280}
           height={64}
@@ -65,7 +65,7 @@ export function Brand({
       {!admin && <LanguageToggle />}
       {company.trim().toLowerCase() === "canadian tire" && (
         <img
-          src="/images/canadian-tire-clean.png"
+          src="/images/canadian-tire-clean.webp"
           alt="Canadian Tire"
           className="dealer-logo"
           width={84}
@@ -197,7 +197,7 @@ export function OrderReceipt({ order }: { order: Order }) {
         }}
       >
         <img
-          src="/images/terra-nova-logo.png"
+          src="/images/terra-nova-logo.webp"
           alt="Terra Nova"
           width={260}
           height={70}
@@ -205,7 +205,7 @@ export function OrderReceipt({ order }: { order: Order }) {
         />
         {order.company.trim().toLowerCase() === "canadian tire" && (
           <img
-            src="/images/canadian-tire-clean.png"
+            src="/images/canadian-tire-clean.webp"
             alt="Canadian Tire"
             width={84}
             height={70}

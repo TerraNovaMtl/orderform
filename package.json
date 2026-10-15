@@ -13,7 +13,8 @@
     "db:inspect": "node --env-file=.env.local scripts/inspect-db.mjs",
     "db:migrate": "node --env-file=.env.local scripts/migrate.mjs",
     "db:import": "node --env-file=.env.local scripts/import-sheets.mjs",
-    "optimize:pages": "node scripts/optimize-pages.mjs"
+    "optimize:pages": "node scripts/optimize-pages.mjs",
+    "optimize:logos": "node scripts/optimize-logos.mjs"
   },
   "dependencies": {
     "next": "^16.3.7",

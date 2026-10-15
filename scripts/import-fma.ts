@@ -2,6 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { resolve, dirname } from "node:path";
 import { createHash } from "node:crypto";
 import postgres from "postgres";
+import labels from "../src/lib/fma-product-labels.json";
 import { productSchema, productAmounts } from "../src/lib/domain";
 
 const args = process.argv.slice(2),
@@ -20,6 +21,7 @@ if (manifest.catalogKey !== "fma-2026" || manifest.company !== "Canadian Tire")
 const keys = new Set<string>();
 const prepared = [];
 for (const raw of manifest.products) {
+  Object.assign(raw, labels[raw.key as keyof typeof labels] ?? {});
   if (keys.has(raw.key)) throw new Error("Duplicate product key");
   keys.add(raw.key);
   if (raw.imageFile.includes("/") || raw.imageFile.includes(".."))

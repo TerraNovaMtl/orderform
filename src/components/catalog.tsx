@@ -2,7 +2,7 @@
 import { isValidPhone, PHONE_FORMAT_MESSAGE } from "@/lib/phone";
 import { CategoryFilter } from "./category-filter";
 import { useLanguage } from "./language";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   productAmounts,
   dealerPrice,
@@ -24,6 +24,7 @@ export function Catalog({
   code: string;
   initialStoreCode?: string;
 }) {
+  const searchInput = useRef<HTMLInputElement>(null);
   const { t, money, setCategoryTranslations } = useLanguage();
   const [agent, setAgent] = useState<Agent | null>(null),
     [products, setProducts] = useState<Product[]>([]),
@@ -539,12 +540,29 @@ export function Catalog({
                 )}
               </p>
             </div>
-            <input
-              aria-label={t("Search products")}
-              placeholder={t("Search products or SKU…")}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+            <div className="catalog-search">
+              <input
+                ref={searchInput}
+                type="text"
+                aria-label={t("Search products")}
+                placeholder={t("Search products or SKU…")}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {search && (
+                <button
+                  type="button"
+                  className="catalog-search-clear"
+                  aria-label={t("Clear search")}
+                  onClick={() => {
+                    setSearch("");
+                    searchInput.current?.focus();
+                  }}
+                >
+                  <span aria-hidden="true">×</span>
+                </button>
+              )}
+            </div>
           </div>
           <div className="catalog-view-frame">
             <CatalogInstructions />
@@ -780,11 +798,6 @@ export function Catalog({
               <div className="summary-line" key={l.p.id}>
                 <span>
                   {t(l.p.name)}
-                  {l.p.catalogKey === "row-19"
-                    ? ` - ${t("Twin")}`
-                    : l.p.catalogKey === "row-20"
-                      ? ` - ${t("Queen")}`
-                      : ""}
                   <small>
                     {l.qty} {t(l.p.orderUnit)} · {l.qty * l.p.unitsPerOrder}{" "}
                     {t(l.p.unitLabel)}

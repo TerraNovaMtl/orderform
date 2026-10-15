@@ -1002,20 +1002,28 @@ dialog::backdrop {
 }
 .pdf-cart-feedback {
   position: fixed;
-  top: 110px;
-  right: 16px;
-  max-width: min(420px, calc(100vw - 32px));
+  top: auto;
+  right: auto;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(480px, calc(100vw - 32px));
   margin: 0;
-  z-index: 60;
+  z-index: 100;
   pointer-events: none;
   overflow-wrap: anywhere;
-  box-shadow: 0 4px 16px #172c3926;
-  background: white;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 10px 14px;
-  font-size: 13px;
+  box-shadow: 0 6px 24px #172c3940;
+  background: var(--navy);
+  color: white;
+  border: 1px solid #ffffff40;
+  border-radius: 10px;
+  padding: 14px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
 }
+
 @media (max-width: 600px) {
   .pdf-page-option {
     flex-wrap: wrap;

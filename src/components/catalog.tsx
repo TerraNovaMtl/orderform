@@ -55,6 +55,17 @@ export function Catalog({
   useEffect(() => {
     setRemovedItems([]);
   }, [store?.id, receipt?.id, code]);
+  const [addedMessage, setAddedMessage] = useState<{ product: Product } | null>(
+    null,
+  );
+  useEffect(() => {
+    if (!addedMessage) return;
+    const timer = window.setTimeout(() => setAddedMessage(null), 3500);
+    return () => window.clearTimeout(timer);
+  }, [addedMessage]);
+  useEffect(() => {
+    setAddedMessage(null);
+  }, [store?.id, receipt?.id, code]);
   const [hiddenCategories, setHiddenCategories] = useState<string[]>([]);
   const draftKey = `tn-draft-${code.toUpperCase()}`;
   useEffect(() => {
@@ -414,6 +425,32 @@ export function Catalog({
       [id]: Math.min(100000, Math.max(0, value)),
     }));
   }
+  function addProduct(product: Product) {
+    if (product.status !== "available" || qty[product.id] >= 100000) return;
+    setQty((current) => ({
+      ...current,
+      [product.id]: Math.min(
+        100000,
+        current[product.id] > 0
+          ? current[product.id] + 1
+          : (product.minimumOrder ?? 1),
+      ),
+    }));
+    setAddedMessage({ product });
+  }
+  const addedToast = addedMessage && (
+    <p
+      role="status"
+      className="pdf-cart-feedback"
+      style={
+        removedItems.length
+          ? { bottom: "calc(110px + env(safe-area-inset-bottom, 0px))" }
+          : undefined
+      }
+    >
+      {t(addedMessage.product.name)} {t("added to your cart.")}
+    </p>
+  );
   function removeCartItem(product: Product, quantity: number) {
     setRemovedItems((current) => [...current, { product, quantity }]);
     setProductQty(product.id, 0);
@@ -461,7 +498,7 @@ export function Catalog({
           className="add-to-cart"
           disabled={disabled}
           aria-label={`${t("Add")} ${t(p.name)} ${t("to cart")}`}
-          onClick={() => setProductQty(p.id, p.minimumOrder ?? 1)}
+          onClick={() => addProduct(p)}
         >
           {compact ? (
             <>
@@ -498,7 +535,7 @@ export function Catalog({
           className="secondary"
           aria-label={`${t("Increase quantity for")} ${t(p.name)}`}
           disabled={disabled || qty[p.id] >= 100000}
-          onClick={() => setProductQty(p.id, qty[p.id] + 1)}
+          onClick={() => addProduct(p)}
         >
           +
         </button>
@@ -507,6 +544,7 @@ export function Catalog({
   }
   return (
     <>
+      {!review && addedToast}
       <div className="agent-strip">
         <strong>{agent.company}</strong>
         <span>
@@ -619,17 +657,7 @@ export function Catalog({
                 search={search}
                 qty={qty}
                 controls={(p) => cartControl(p, false, true)}
-                add={(p) =>
-                  setQty((current) => ({
-                    ...current,
-                    [p.id]: Math.min(
-                      100000,
-                      current[p.id] > 0
-                        ? current[p.id] + 1
-                        : (p.minimumOrder ?? 1),
-                    ),
-                  }))
-                }
+                add={addProduct}
               />
             </div>
           </div>
@@ -797,7 +825,8 @@ export function Catalog({
                 <span>
                   {t(l.p.name)}
                   <small>
-                    {l.qty} {t(l.p.orderUnit)} · {l.qty * l.p.unitsPerOrder}{" "}
+                    {l.qty} {t(l.p.orderUnit)}
+                    {l.qty === 1 ? "" : "s"} · {l.qty * l.p.unitsPerOrder}{" "}
                     {t(l.p.unitLabel)}
                   </small>
                 </span>
@@ -840,6 +869,7 @@ export function Catalog({
             if (!busy) setReview(false);
           }}
         >
+          {addedToast}
           <p>
             {agent.company} · {t("Store")} {store.storeCode}
             <br />
@@ -880,7 +910,8 @@ export function Catalog({
                           {t(l.p.name)}
                           {l.p.sku && <small>SKU: {l.p.sku}</small>}
                           <small>
-                            {l.qty} {t(l.p.orderUnit)} ·{" "}
+                            {l.qty} {t(l.p.orderUnit)}
+                            {l.qty === 1 ? "" : "s"} ·{" "}
                             {l.qty * l.p.unitsPerOrder} {t(l.p.unitLabel)}
                           </small>
                         </div>

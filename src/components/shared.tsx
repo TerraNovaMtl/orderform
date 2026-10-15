@@ -273,6 +273,7 @@ export function OrderReceipt({
                 </td>
                 <td>
                   {l.qty} {t(l.orderUnit)}
+                  {l.qty === 1 ? "" : "s"}
                 </td>
                 <td>{l.qty * l.unitsPerOrder}</td>
                 <td>{moneyFormat(l.lineDealer)}</td>

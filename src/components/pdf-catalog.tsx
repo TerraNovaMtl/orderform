@@ -32,19 +32,12 @@ export function PdfCatalog({
   const [imageSizes, setImageSizes] = useState<
     Record<string, { width: number; height: number }>
   >({});
-  const [message, setMessage] = useState<{ product: Product } | null>(null);
-  useEffect(() => {
-    if (!message) return;
-    const timer = window.setTimeout(() => setMessage(null), 3500);
-    return () => window.clearTimeout(timer);
-  }, [message]);
   const [pageNumber, setPageNumber] = useState(1);
   const [searchPageNumber, setSearchPageNumber] = useState(1);
   const selectPageNumber = search ? setSearchPageNumber : setPageNumber;
   const [choices, setChoices] = useState<Product[] | null>(null);
   useEffect(() => {
     setSearchPageNumber(1);
-    setMessage(null);
   }, [search]);
   const byKey = new Map(
     products
@@ -84,15 +77,9 @@ export function PdfCatalog({
   if (!hasCatalogue || !currentPage) return null;
   function select(p: Product) {
     add(p);
-    setMessage({ product: p });
   }
   return (
     <div className="pdf-catalog">
-      {message && (
-        <p role="status" className="pdf-cart-feedback">
-          {t(message.product.name)} {t("added to your cart.")}
-        </p>
-      )}
       {(currentPage ? [currentPage] : []).map((sourcePage) => {
         const page = { ...sourcePage, ...imageSizes[sourcePage.image] };
         const regions = page.regions.flatMap((region) => {

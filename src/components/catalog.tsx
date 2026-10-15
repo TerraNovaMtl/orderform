@@ -598,9 +598,6 @@ export function Catalog({
               <PdfCatalog
                 products={categoryProducts}
                 allProducts={products}
-                categoryFilterActive={availableCategories.some((category) =>
-                  hiddenCategories.includes(category),
-                )}
                 search={search}
                 qty={qty}
                 controls={(p) => cartControl(p, false, true)}

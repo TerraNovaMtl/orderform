@@ -15,7 +15,6 @@ import { Modal } from "./shared";
 export function PdfCatalog({
   products,
   allProducts,
-  categoryFilterActive,
   search,
   qty,
   add,
@@ -23,7 +22,6 @@ export function PdfCatalog({
 }: {
   products: Product[];
   allProducts: Product[];
-  categoryFilterActive: boolean;
   search: string;
   qty: Record<string, number>;
   add: (product: Product) => void;
@@ -49,7 +47,6 @@ export function PdfCatalog({
   const matches = (p: Product) => matchesProductSearch(p, search, t);
   const visiblePages = pages.filter(
     (page) =>
-      (!categoryFilterActive || page.regions.length > 0) &&
       (!page.regions.length || page.regions.some((r) => byKey.has(r.key))) &&
       (!search ||
         page.regions.some((r) => {
@@ -66,13 +63,16 @@ export function PdfCatalog({
   const nextImage = nextPage?.image;
   const nextSrcSet = nextPage ? catalogPageSrcSet(nextPage.image) : undefined;
   useEffect(() => {
-    if (!byKey.size || !nextImage) return;
+    if (!nextImage) return;
     const image = new Image();
     image.sizes = CATALOG_IMAGE_SIZES;
     if (nextSrcSet) image.srcset = nextSrcSet;
     image.src = nextImage;
-  }, [nextImage, nextSrcSet, byKey.size]);
-  if (!byKey.size || !currentPage) return null;
+  }, [nextImage, nextSrcSet]);
+  const hasCatalogue = allProducts.some(
+    (product) => product.catalogKey || hasUploadedPage(product),
+  );
+  if (!hasCatalogue || !currentPage) return null;
   function select(p: Product) {
     add(p);
     setMessage(p);

@@ -1016,7 +1016,7 @@ export function Admin() {
                                   </button>
                                   <button
                                     className="text-button"
-                                    onClick={() => exportOrder(o)}
+                                    onClick={() => exportOrder(o, true)}
                                   >
                                     CSV
                                   </button>
@@ -1957,7 +1957,7 @@ export function Admin() {
       )}
       {receipt && (
         <Modal title="Order details" onClose={() => setReceipt(null)}>
-          <OrderReceipt order={receipt} />
+          <OrderReceipt order={receipt} includeCost />
         </Modal>
       )}
     </main>

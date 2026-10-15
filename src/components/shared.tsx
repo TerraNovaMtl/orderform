@@ -118,7 +118,7 @@ export function Modal({
     </dialog>
   );
 }
-export function exportOrder(order: Order) {
+export function exportOrder(order: Order, includeCost = false) {
   const rows: unknown[][] = [
     ["Order", order.reference],
     ["Company", order.company],
@@ -137,7 +137,7 @@ export function exportOrder(order: Order) {
       "Order unit",
       "Order qty",
       "Units per order",
-      "Cost/unit",
+      ...(includeCost ? ["Cost/unit"] : []),
       "Dealer/unit",
       "SRP/unit",
       "Dealer total",
@@ -150,7 +150,7 @@ export function exportOrder(order: Order) {
       l.orderUnit,
       l.qty,
       l.unitsPerOrder,
-      l.cost,
+      ...(includeCost ? [l.cost] : []),
       l.dealerUnit,
       l.srpUnit,
       l.lineDealer,
@@ -163,7 +163,7 @@ export function exportOrder(order: Order) {
       "",
       "",
       "",
-      "",
+      ...(includeCost ? [""] : []),
       "",
       "",
       order.totalDealer,
@@ -182,7 +182,13 @@ export function exportOrder(order: Order) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-export function OrderReceipt({ order }: { order: Order }) {
+export function OrderReceipt({
+  order,
+  includeCost = false,
+}: {
+  order: Order;
+  includeCost?: boolean;
+}) {
   const { t, language, money: moneyFormat } = useLanguage();
   return (
     <section className="receipt">
@@ -284,7 +290,10 @@ export function OrderReceipt({ order }: { order: Order }) {
       )}
       {order.comments && <p className="comments">{order.comments}</p>}
       <div className="actions no-print">
-        <button onClick={() => exportOrder(order)} className="secondary">
+        <button
+          onClick={() => exportOrder(order, includeCost)}
+          className="secondary"
+        >
           {t("Download CSV")}
         </button>
         <button

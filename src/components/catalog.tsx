@@ -536,7 +536,7 @@ export function Catalog({
               <h1>{t("Stock your shelves.")}</h1>
               <p className="muted">
                 {t(
-                  "All prices per individual unit. Order by the pack, case or display.",
+                  "Choose quantities in packs, cases or displays. Listed prices are per individual item; your cart shows the total.",
                 )}
               </p>
             </div>
@@ -648,7 +648,6 @@ export function Catalog({
                     <tr>
                       <th>{t("Product")}</th>
                       <th>{t("SRP")}</th>
-                      <th>{t("Cost")}</th>
                       <th>{t("Dealer")}</th>
                       <th>{t("Order qty")}</th>
                     </tr>
@@ -692,7 +691,6 @@ export function Catalog({
                             </div>
                           </td>
                           <td>{money(p.srp)}</td>
-                          <td>{p.cost == null ? "—" : money(p.cost)}</td>
                           <td>
                             <strong>{money(dealerPrice(p))}</strong>
                             <small>

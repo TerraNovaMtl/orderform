@@ -808,12 +808,9 @@ dialog::backdrop {
     content: "SRP";
   }
   .product-table td:nth-child(3)::before {
-    content: "Cost";
-  }
-  .product-table td:nth-child(4)::before {
     content: "Dealer";
   }
-  .product-table td:nth-child(5)::before {
+  .product-table td:nth-child(4)::before {
     content: "Order quantity";
   }
   .product-table td::before {

@@ -63,11 +63,15 @@ export function CategoryFilter({
   ).length;
   function categoryOption(category: string, child = false) {
     const index = categories.indexOf(category);
+    const label =
+      child && category === "Home" ? t("Other Home products") : t(category);
     return (
       <label key={category} htmlFor={`${filterId}-${index}`}>
         <input
           id={`${filterId}-${index}`}
           type="checkbox"
+          aria-label={label}
+          aria-describedby={`${filterId}-${index}-count`}
           checked={!excluded.includes(category)}
           onChange={(e) =>
             onChange(
@@ -77,12 +81,11 @@ export function CategoryFilter({
             )
           }
         />
-        <span>
-          {child && category === "Home"
-            ? t("Other Home products")
-            : t(category)}
-        </span>
-        <span className="category-product-count">
+        <span>{label}</span>
+        <span
+          id={`${filterId}-${index}-count`}
+          className="category-product-count"
+        >
           ({counts[category] ?? 0})
         </span>
       </label>
@@ -175,6 +178,8 @@ export function CategoryFilter({
                     ref={homeCheckbox}
                     id={`${filterId}-home`}
                     type="checkbox"
+                    aria-label={t("Home")}
+                    aria-describedby={`${filterId}-home-count`}
                     checked={homeSelected === homeCategories.length}
                     onChange={(event) =>
                       onChange(
@@ -187,7 +192,10 @@ export function CategoryFilter({
                     }
                   />
                   <span>{t("Home")}</span>
-                  <span className="category-product-count">
+                  <span
+                    id={`${filterId}-home-count`}
+                    className="category-product-count"
+                  >
                     (
                     {homeCategories.reduce(
                       (total, category) => total + (counts[category] ?? 0),

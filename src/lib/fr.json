@@ -30,7 +30,6 @@
   "Change store": "Changer de magasin",
   "The collection": "La collection",
   "Stock your shelves.": "Approvisionnez vos rayons.",
-  "All prices per individual unit. Order by the pack, case or display.": "Tous les prix sont par unité. Commandez par paquet, caisse ou présentoir.",
   "Search products": "Rechercher des produits",
   "Search products or SKU…": "Rechercher un produit ou un SKU…",
   "No products match your search.": "Aucun produit ne correspond à votre recherche.",
@@ -199,5 +198,6 @@
   "Whisper 3-Piece Quilt Set - Double/Queen": "Ensemble de courtepointe Whisper 3 pièces - Double/Grand",
   "Symphony 3-Piece Quilt Set - Double/Queen": "Ensemble de courtepointe Symphony 3 pièces - Double/Grand",
   "Dream Blue 3-Piece Quilt Set - Double/Queen": "Ensemble de courtepointe Dream Blue 3 pièces - Double/Grand",
-  "Forever Blue 3-Piece Quilt Set - Double/Queen": "Ensemble de courtepointe Forever Blue 3 pièces - Double/Grand"
+  "Forever Blue 3-Piece Quilt Set - Double/Queen": "Ensemble de courtepointe Forever Blue 3 pièces - Double/Grand",
+  "Choose quantities in packs, cases or displays. Listed prices are per individual item; your cart shows the total.": "Choisissez les quantités en paquets, caisses ou présentoirs. Les prix affichés sont par article; le panier indique le total."
 }

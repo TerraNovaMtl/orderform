@@ -122,6 +122,11 @@ export type Product = ProductInput & {
   version: number;
   catalogKey?: string;
 };
+// Dealer payloads carry the resolved selling price, never internal cost.
+export type DealerProduct = Omit<Product, "cost"> & { dealerPrice: number };
+export type DealerOrder = Omit<Order, "lines"> & {
+  lines: Omit<OrderLine, "cost">[];
+};
 export type Agent = z.infer<typeof agentSchema> & { id: string };
 export type Store = z.infer<typeof storeSchema> & {
   id: string;
@@ -170,7 +175,7 @@ export type Order = {
 
 // Exact decimal arithmetic: preserve cost × 1.11 until rounding each line to cents.
 export function dealerPrice(p: {
-  cost: number | null;
+  cost?: number | null;
   dealerPrice?: number | null;
 }) {
   if (p.dealerPrice != null) return p.dealerPrice;
@@ -178,7 +183,7 @@ export function dealerPrice(p: {
   return p.cost * 1.11;
 }
 export function productAmounts(
-  p: { cost: number | null; dealerPrice?: number | null; srp: number },
+  p: { cost?: number | null; dealerPrice?: number | null; srp: number },
   units: number,
 ) {
   return {

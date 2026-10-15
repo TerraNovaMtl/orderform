@@ -9,9 +9,9 @@ import {
   sumMoney,
   type Category,
   type Agent,
-  type Product,
+  type DealerProduct as Product,
   type Store,
-  type Order,
+  type DealerOrder as Order,
 } from "@/lib/domain";
 import { Modal, OrderReceipt, request } from "./shared";
 import { hasUploadedPage } from "@/lib/catalog-pages";

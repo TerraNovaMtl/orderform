@@ -1,11 +1,11 @@
 import pages from "./fma-pages.json";
 import type { Product } from "./domain";
 
-export function hasUploadedPage(product: Product) {
+export function hasUploadedPage(product: Omit<Product, "cost">) {
   return !product.catalogKey && product.image.startsWith("/api/images/");
 }
 
-export function catalogPages(products: Product[]) {
+export function catalogPages(products: Omit<Product, "cost">[]) {
   const lastPage = Math.max(...pages.map((page) => page.number));
   const result = [
     ...pages,

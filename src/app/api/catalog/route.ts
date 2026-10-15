@@ -1,6 +1,7 @@
 import { codeSchema } from "@/lib/domain";
 import { getAgent, listProducts, listCategories } from "@/lib/repository";
 import { errorResponse, json, rateLimit } from "@/lib/http";
+import { toDealerProduct } from "@/lib/dealer-responses";
 export async function GET(req: Request) {
   try {
     const code = codeSchema.parse(new URL(req.url).searchParams.get("vendor"));
@@ -10,7 +11,7 @@ export async function GET(req: Request) {
       listProducts(code),
       listCategories(),
     ]);
-    return json({ agent, products, categories });
+    return json({ agent, products: products.map(toDealerProduct), categories });
   } catch (e) {
     return errorResponse(e);
   }

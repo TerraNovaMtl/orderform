@@ -9,7 +9,7 @@ import {
   hasUploadedPage,
 } from "@/lib/catalog-pages";
 import { matchesProductSearch } from "@/lib/product-search";
-import { dealerPrice, type Product } from "@/lib/domain";
+import { dealerPrice, type DealerProduct as Product } from "@/lib/domain";
 import { Modal } from "./shared";
 
 export function PdfCatalog({
@@ -87,7 +87,7 @@ export function PdfCatalog({
     setMessage({ product: p });
   }
   return (
-    <div className={`pdf-catalog ${styles.catalog}`}>
+    <div className="pdf-catalog">
       {message && (
         <p role="status" className="pdf-cart-feedback">
           {t(message.product.name)} {t("added to your cart.")}
@@ -103,13 +103,13 @@ export function PdfCatalog({
         if (page.regions.length && !regions.length) return null;
         return (
           <section
-            className={`pdf-page-card ${styles.layout}${regions.length ? ` ${styles.withOptions}` : ""}`}
+            className="pdf-page-card"
             style={{ marginBottom: 0 }}
             key={page.number}
             aria-label={`${t("Page")} ${page.number}`}
           >
             <div
-              className={`pdf-reader-stage ${styles.stage}`}
+              className={`pdf-reader-stage ${styles.stage}${regions.length > 2 ? ` ${styles.multiple}` : ""}`}
               style={{
                 position: "relative",
                 width: `min(100%, calc(${(82 * page.width) / page.height}vh + var(--pdf-left-space) + var(--pdf-right-space)))`,
@@ -261,36 +261,27 @@ export function PdfCatalog({
                   ),
                 )}
               </div>
-            </div>
-            {regions.length > 0 && (
-              <details
-                className={`pdf-page-options ${styles.quantityList}`}
-                key={page.number}
-                open
-              >
-                <summary>{t("Adjust quantities for this page")}</summary>
-                {regions.map(({ key, product }) => (
-                  <div className="pdf-page-option" key={key}>
-                    <div>
-                      <strong>{t(product.name)}</strong>
-                      <small>
-                        {product.sku} · 1 {t(product.orderUnit)} ={" "}
-                        {product.unitsPerOrder} {t(product.unitLabel)}
-                        {(product.minimumOrder ?? 1) > 1
-                          ? ` · Minimum ${product.minimumOrder} packs`
-                          : ""}
-                      </small>
-                      <small>
-                        {t("Dealer")} {moneyFormat(dealerPrice(product))} /{" "}
-                        {t("unit")} ·{t("Retail")} {moneyFormat(product.srp)} /{" "}
-                        {t("unit")}
-                      </small>
+              {regions.length > 0 && (
+                <div className={`pdf-page-cart-controls ${styles.controls}`}>
+                  {regions.map(({ key, product }) => (
+                    <div className={styles.control} key={key}>
+                      {regions.length > 1 && (
+                        <span className={styles.label}>
+                          {product.catalogKey === "row-19"
+                            ? t("Twin")
+                            : product.catalogKey === "row-20"
+                              ? t("Queen")
+                              : page.number === 13
+                                ? t(product.style)
+                                : t(product.name)}
+                        </span>
+                      )}
+                      {controls(product)}
                     </div>
-                    {controls(product)}
-                  </div>
-                ))}
-              </details>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
             <nav
               className="pdf-page-navigation pdf-bottom-pages"
               aria-label={t("Catalogue pages")}
@@ -329,6 +320,31 @@ export function PdfCatalog({
                 </span>
               </label>
             </nav>
+            {regions.length > 0 && (
+              <details className="pdf-page-options" key={page.number}>
+                <summary>{t("Adjust quantities for this page")}</summary>
+                {regions.map(({ key, product }) => (
+                  <div className="pdf-page-option" key={key}>
+                    <div>
+                      <strong>{t(product.name)}</strong>
+                      <small>
+                        {product.sku} · 1 {t(product.orderUnit)} ={" "}
+                        {product.unitsPerOrder} {t(product.unitLabel)}
+                        {(product.minimumOrder ?? 1) > 1
+                          ? ` · Minimum ${product.minimumOrder} packs`
+                          : ""}
+                      </small>
+                      <small>
+                        {t("Dealer")} {moneyFormat(dealerPrice(product))} /{" "}
+                        {t("unit")} ·{t("Retail")} {moneyFormat(product.srp)} /{" "}
+                        {t("unit")}
+                      </small>
+                    </div>
+                    {controls(product)}
+                  </div>
+                ))}
+              </details>
+            )}
           </section>
         );
       })}

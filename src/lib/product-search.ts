@@ -9,7 +9,7 @@ const normalize = (value: string) =>
     .trim();
 
 export function matchesProductSearch(
-  product: Product,
+  product: Pick<Product, "name" | "sku" | "category" | "style">,
   query: string,
   translate: (text: string) => string = (text) => text,
 ) {

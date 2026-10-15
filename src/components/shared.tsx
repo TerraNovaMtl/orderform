@@ -1,7 +1,12 @@
 "use client";
 import { LanguageToggle, useLanguage } from "./language";
 import { useEffect, useRef } from "react";
-import { csvCell, moneyFormat, type Order } from "@/lib/domain";
+import {
+  csvCell,
+  moneyFormat,
+  type Order,
+  type DealerOrder,
+} from "@/lib/domain";
 import { LocalInstanceBadge } from "./local-instance-badge";
 export async function request<T>(url: string, body?: unknown): Promise<T> {
   const res = await fetch(
@@ -118,7 +123,7 @@ export function Modal({
     </dialog>
   );
 }
-export function exportOrder(order: Order, includeCost = false) {
+export function exportOrder(order: Order | DealerOrder, includeCost = false) {
   const rows: unknown[][] = [
     ["Order", order.reference],
     ["Company", order.company],
@@ -150,7 +155,7 @@ export function exportOrder(order: Order, includeCost = false) {
       l.orderUnit,
       l.qty,
       l.unitsPerOrder,
-      ...(includeCost ? [l.cost] : []),
+      ...(includeCost ? ["cost" in l ? l.cost : undefined] : []),
       l.dealerUnit,
       l.srpUnit,
       l.lineDealer,
@@ -186,7 +191,7 @@ export function OrderReceipt({
   order,
   includeCost = false,
 }: {
-  order: Order;
+  order: Order | DealerOrder;
   includeCost?: boolean;
 }) {
   const { t, language, money: moneyFormat } = useLanguage();

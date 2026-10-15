@@ -2,6 +2,7 @@ import { submitOrder } from "@/lib/repository";
 import { errorResponse, json, rateLimit, readJson } from "@/lib/http";
 import { after } from "next/server";
 import { deliverEmails } from "@/lib/email";
+import { toDealerOrder } from "@/lib/dealer-responses";
 export const maxDuration = 60;
 export async function POST(req: Request) {
   try {
@@ -15,7 +16,7 @@ export async function POST(req: Request) {
         console.error("Email worker deferred to scheduled retry");
       }
     });
-    return json({ order }, 201);
+    return json({ order: toDealerOrder(order) }, 201);
   } catch (e) {
     return errorResponse(e);
   }

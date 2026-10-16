@@ -25,7 +25,7 @@ export function Catalog({
   initialStoreCode?: string;
 }) {
   const searchInput = useRef<HTMLInputElement>(null);
-  const { t, money, setCategoryTranslations } = useLanguage();
+  const { t, money, language, setCategoryTranslations } = useLanguage();
   const [agent, setAgent] = useState<Agent | null>(null),
     [products, setProducts] = useState<Product[]>([]),
     [loading, setLoading] = useState(true),
@@ -188,6 +188,7 @@ export function Catalog({
         vendorCode: code.toUpperCase(),
         storeCode: store!.storeCode,
         comments,
+        language,
         customerPo,
         contactPhone,
         lines: lines.map((l) => ({ productId: l.p.id, qty: l.qty })),

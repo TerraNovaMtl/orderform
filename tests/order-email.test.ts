@@ -107,3 +107,44 @@ test("order updates show optional comments separately and escape their content",
     /Update comments/,
   );
 });
+
+for (const update of [undefined, { comments: "Updated quantities" }]) {
+  test(`${update ? "update" : "confirmation"} email uses the order language for its closing`, () => {
+    const english = renderOrderEmail({ ...order, language: "en" }, [], update);
+    assert.match(english, /<strong>Thank you for your order!<\/strong>/);
+    assert.ok(
+      english.includes(
+        "We have received your order and will begin processing it shortly.",
+      ),
+    );
+    assert.ok(
+      english.includes(
+        "We truly appreciate your business and continued support!",
+      ),
+    );
+    assert.match(english, /<strong>The Terra Nova Team<\/strong>/);
+    assert.doesNotMatch(english, /Merci pour votre commande/);
+
+    const french = renderOrderEmail({ ...order, language: "fr" }, [], update);
+    assert.match(french, /<strong>Merci pour votre commande!<\/strong>/);
+    assert.ok(
+      french.includes(
+        "Nous avons bien reçu votre commande et nous procéderons à son traitement sous peu.",
+      ),
+    );
+    assert.ok(
+      french.includes(
+        "Nous vous remercions sincèrement de votre confiance et de votre fidélité!",
+      ),
+    );
+    assert.match(french, /<strong>L&#39;équipe Terra Nova<\/strong>/);
+    assert.doesNotMatch(french, /Thank you for your order/);
+  });
+}
+
+test("older orders without a saved language use the English closing", () => {
+  assert.match(
+    renderOrderEmail(order),
+    /<strong>Thank you for your order!<\/strong>/,
+  );
+});

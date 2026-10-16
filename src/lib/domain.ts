@@ -72,6 +72,7 @@ export const orderSchema = z
   .object({
     vendorCode: codeSchema,
     storeCode: codeSchema,
+    language: z.enum(["en", "fr"]).optional(),
     comments: text(4000),
     customerPo: text().optional(),
     contactPhone: text(80)
@@ -151,6 +152,7 @@ export type OrderLine = {
   lineRetail: number;
 };
 export type Order = {
+  language?: "en" | "fr";
   id: string;
   reference: string;
   version: number;

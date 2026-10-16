@@ -25,6 +25,24 @@ export function renderOrderEmail(
       ? `<table role="presentation" cellspacing="0" cellpadding="0"><tr><td valign="middle" style="padding:0 10px 0 0;border:0;"><img src="cid:${esc(thumbnail.cid)}" alt="${esc(line.name)}" width="${thumbnail.width}" height="${thumbnail.height}" style="display:block;width:${thumbnail.width}px;height:${thumbnail.height}px;border:1px solid #e4e8e5;"></td><td valign="middle" style="padding:0;border:0;">${label}</td></tr></table>`
       : label;
   };
+  const closing =
+    order.language === "fr"
+      ? {
+          thanks: "Merci pour votre commande!",
+          received:
+            "Nous avons bien reçu votre commande et nous procéderons à son traitement sous peu.",
+          appreciation:
+            "Nous vous remercions sincèrement de votre confiance et de votre fidélité!",
+          team: "L'équipe Terra Nova",
+        }
+      : {
+          thanks: "Thank you for your order!",
+          received:
+            "We have received your order and will begin processing it shortly.",
+          appreciation:
+            "We truly appreciate your business and continued support!",
+          team: "The Terra Nova Team",
+        };
   const cell = "border:1px solid #dce2de;padding:12px 14px;";
   const companyLogo =
     order.company.trim().toLowerCase() === "canadian tire"
@@ -42,5 +60,11 @@ ${update?.comments ? `<div style="margin:0 0 20px;padding:14px;background:#fff4e
 <tbody>${order.lines.map((line) => `<tr><td style="${cell}">${productCell(line)}</td><td align="center" style="${cell}white-space:nowrap;">${line.qty} ${esc(line.orderUnit)}${line.qty === 1 ? "" : "s"}</td><td align="right" style="${cell}text-align:right;white-space:nowrap;">$${line.lineDealer.toFixed(2)}</td></tr>`).join("")}</tbody>
 <tfoot><tr style="background:#f7f9f8;"><td colspan="2" style="${cell}font-size:16px;font-weight:700;">Dealer total</td><td align="right" style="${cell}text-align:right;font-size:24px;font-weight:700;white-space:nowrap;">$${order.totalDealer.toFixed(2)}</td></tr></tfoot></table>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:22px;font-size:13px;line-height:1.6;"><tr><td style="padding-bottom:6px;"><strong>PO number:</strong> ${esc(order.customerPo || "—")}</td></tr><tr><td><strong>Phone:</strong> ${esc(order.contactPhone || "—")}</td></tr>${order.comments ? `<tr><td style="padding-top:14px;"><strong>Order notes</strong><br>${esc(order.comments).replace(/\r?\n/g, "<br>")}</td></tr>` : ""}</table>
+<div lang="${order.language === "fr" ? "fr" : "en"}" style="margin-top:24px;font-size:14px;line-height:1.6;">
+<p><strong>${esc(closing.thanks)}</strong></p>
+<p>${esc(closing.received)}</p>
+<p>${esc(closing.appreciation)}</p>
+<p><strong>${esc(closing.team)}</strong></p>
+</div>
 </td></tr></table></body></html>`;
 }

@@ -18,6 +18,7 @@ import {
 } from "@/lib/domain";
 import { Modal, OrderReceipt, request, exportOrder } from "./shared";
 type Data = {
+  coverImage: string;
   categories: Category[];
   companies: Company[];
   products: Product[];
@@ -114,7 +115,7 @@ export function Admin() {
   }
   const match = (...values: string[]) =>
     values.join(" ").toLowerCase().includes(search.toLowerCase());
-  async function upload(file: File) {
+  async function upload(file: File, cover = false) {
     setImageUploading(true);
     setImageUploadNotice("");
     setBusy(true);
@@ -132,7 +133,10 @@ export function Admin() {
         action: "uploadImage",
         contentBase64: base64,
       });
-      setProduct((p) => (p ? { ...p, image: result.image } : p));
+      if (cover) {
+        if (await mutate({ action: "saveCatalogCover", image: result.image }))
+          setNotice("Catalogue cover updated.");
+      } else setProduct((p) => (p ? { ...p, image: result.image } : p));
       setImageUploadNotice(
         "Image uploaded. Save the product to publish this page.",
       );
@@ -397,6 +401,37 @@ export function Admin() {
           )}
           {tab === "products" && (
             <>
+              <section className="card" aria-label="Catalogue cover">
+                <h2>Catalogue cover</h2>
+                <p className="muted">
+                  The first page shown to all customers. Upload a replacement to
+                  publish it. This page cannot be ordered.
+                </p>
+                <img
+                  src={data.coverImage}
+                  alt="Current catalogue cover"
+                  style={{
+                    width: "100%",
+                    maxWidth: 360,
+                    height: "auto",
+                    display: "block",
+                    marginBottom: 12,
+                  }}
+                />
+                <label>
+                  {imageUploading ? "Uploading cover…" : "Replace cover image"}
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    disabled={busy}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void upload(file, true);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+              </section>
               <div className="list-heading">
                 <p className="muted">
                   Manage pricing, packs and agent-specific access.

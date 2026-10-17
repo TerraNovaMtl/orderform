@@ -199,3 +199,7 @@ Apply migration `007_product_order.sql` before deploying sortable products. The 
 Reviewed comforter sizes and quilt design names/SKUs live in `src/lib/fma-product-labels.json`. Preparation, import and quilt restoration apply these labels. To update the seven existing products without changing prices, availability or historical order snapshots, preview with `node --env-file=.env.local --import tsx scripts/rename-fma-products.ts`, then add `--apply` (or `--test` for the test database). The script saves a local before-state backup and records audit events. Quilt SKUs retain the CT identifier followed by the manufacturer code.
 
 Men's Fleece Hoodies (6872227) have an uploaded image rather than an FMA mapping, so the catalogue appends them as page 28. They remain browsable through page navigation and the Men's Apparel category without a search.
+
+### Editable catalogue cover
+
+Apply migration `009_catalog_cover.sql` before deploying this version. Admin → Products → Catalogue cover previews the current first page and publishes a replacement immediately after upload. The cover is shared across agents and has no pricing, cart controls or product record. The supplied artwork in `public/images/catalog-cover.webp` is the default until an admin uploads a replacement. Uploaded images retain their aspect ratio.

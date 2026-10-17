@@ -1,3 +1,4 @@
+import { getCatalogCover, saveCatalogCover } from "@/lib/catalog-cover";
 import { after } from "next/server";
 import { deliverEmails } from "@/lib/email";
 import { z } from "zod";
@@ -41,6 +42,7 @@ export async function GET() {
       orders,
       notifications,
       categories,
+      coverImage,
     ] = await Promise.all([
       listProducts(),
       listCompanies(),
@@ -49,6 +51,7 @@ export async function GET() {
       listOrders(),
       db()`select state,count(*)::int as count from terranova.email_outbox group by state`,
       listCategories(),
+      getCatalogCover(),
     ]);
     return json({
       products,
@@ -58,6 +61,7 @@ export async function GET() {
       orders,
       notifications,
       categories,
+      coverImage,
     });
   } catch (e) {
     return errorResponse(e);
@@ -139,6 +143,9 @@ export async function POST(req: Request) {
           z.number().int().positive().parse(body.version),
           actor,
         );
+        break;
+      case "saveCatalogCover":
+        result = await saveCatalogCover(body.image, actor);
         break;
       case "uploadImage":
         result = await uploadImage(body.contentBase64, actor);

@@ -24,6 +24,7 @@ export function Catalog({
   code: string;
   initialStoreCode?: string;
 }) {
+  const [coverImage, setCoverImage] = useState<string | undefined>();
   const searchInput = useRef<HTMLInputElement>(null);
   const { t, money, language, setCategoryTranslations } = useLanguage();
   const [agent, setAgent] = useState<Agent | null>(null),
@@ -70,9 +71,12 @@ export function Catalog({
   const draftKey = `tn-draft-${code.toUpperCase()}`;
   useEffect(() => {
     let active = true;
-    request<{ agent: Agent; products: Product[]; categories: Category[] }>(
-      `/api/catalog?vendor=${encodeURIComponent(code)}`,
-    )
+    request<{
+      agent: Agent;
+      products: Product[];
+      categories: Category[];
+      coverImage: string;
+    }>(`/api/catalog?vendor=${encodeURIComponent(code)}`)
       .then(async (d) => {
         const selected = initialStoreCode
           ? await request<{ store: Store | null }>("/api/stores", {
@@ -91,6 +95,7 @@ export function Catalog({
           );
           setAgent(d.agent);
           setProducts(d.products);
+          setCoverImage(d.coverImage);
         }
       })
       .catch((e) => {
@@ -655,6 +660,7 @@ export function Catalog({
               <PdfCatalog
                 products={categoryProducts}
                 allProducts={products}
+                coverImage={coverImage}
                 search={search}
                 qty={qty}
                 controls={(p) => cartControl(p, false, true)}

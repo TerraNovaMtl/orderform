@@ -5,10 +5,17 @@ export function hasUploadedPage(product: Omit<Product, "cost">) {
   return !product.catalogKey && product.image.startsWith("/api/images/");
 }
 
-export function catalogPages(products: Omit<Product, "cost">[]) {
+export const DEFAULT_COVER_IMAGE = "/images/catalog-cover.webp";
+
+export function catalogPages(
+  products: Omit<Product, "cost">[],
+  coverImage = DEFAULT_COVER_IMAGE,
+) {
   const lastPage = Math.max(...pages.map((page) => page.number));
   const result = [
-    ...pages,
+    ...pages.map((page) =>
+      page.number === 1 ? { ...page, image: coverImage } : page,
+    ),
     ...products.filter(hasUploadedPage).map((product, index) => ({
       number: lastPage + index + 1,
       image: product.image,

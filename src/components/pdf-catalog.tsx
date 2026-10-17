@@ -15,6 +15,7 @@ import { Modal } from "./shared";
 export function PdfCatalog({
   products,
   allProducts,
+  coverImage,
   search,
   qty,
   add,
@@ -22,13 +23,14 @@ export function PdfCatalog({
 }: {
   products: Product[];
   allProducts: Product[];
+  coverImage?: string;
   search: string;
   qty: Record<string, number>;
   add: (product: Product) => void;
   controls: (product: Product) => React.ReactNode;
 }) {
   const { t, money: moneyFormat } = useLanguage();
-  const pages = catalogPages(allProducts);
+  const pages = catalogPages(allProducts, coverImage);
   const [imageSizes, setImageSizes] = useState<
     Record<string, { width: number; height: number }>
   >({});

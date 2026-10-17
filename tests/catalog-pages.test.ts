@@ -96,3 +96,11 @@ test("unmapped uploaded hoodies remain browsable after the source pages without 
   assert.equal(page.number, 28);
   assert.equal(page.image, hoodie.image);
 });
+
+test("custom cover remains first and cannot be ordered", () => {
+  const cover = catalogPages([product], "/api/images/custom-cover")[0];
+  assert.equal(cover.number, 1);
+  assert.equal(cover.image, "/api/images/custom-cover");
+  assert.deepEqual(cover.regions, []);
+  assert.equal(catalogPages([])[0].image, "/images/catalog-cover.webp");
+});
